@@ -172,7 +172,13 @@ const els = {
 
 function fmtDate(d) {
   if (!d) return null;
-  return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  // d is a plain "YYYY-MM-DD" date (no time/timezone) from Postgres. Parsing
+  // that directly with `new Date()` treats it as UTC midnight, which then
+  // rolls back a day once displayed in an earlier-than-UTC timezone (e.g.
+  // Eastern). Build the date from its local components instead so the day
+  // shown always matches the day stored.
+  const [y, m, day] = d.split("-").map(Number);
+  return new Date(y, m - 1, day).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 function fmtDateTime(d) {
   if (!d) return null;
