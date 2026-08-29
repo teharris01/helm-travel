@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Helm — Travel</title>
+
+<!-- Installable on your phone home screen: add-to-home-screen works from any browser
+     without needing a separate manifest file for this first version. -->
+
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0b0c0f;
+    --panel: #15171c;
+    --panel-border: #262931;
+    --text: #eef0f3;
+    --muted: #9aa1ad;
+    --accent: #5b8cff;
+    --booked: #2e7d4f;
+    --pending: #a06b1f;
+    --unverified: #7a2e2e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 64px; }
+
+  /* ---- Sign-in screen ---- */
+  #signin { max-width: 360px; margin: 18vh auto 0; padding: 0 16px; }
+  #signin h1 { font-size: 20px; margin-bottom: 4px; }
+  #signin p.sub { color: var(--muted); font-size: 14px; margin-top: 0; margin-bottom: 24px; }
+  #signin label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+  #signin input {
+    width: 100%; padding: 11px 12px; border-radius: 8px;
+    border: 1px solid var(--panel-border); background: var(--panel); color: var(--text);
+    font-size: 16px;
+  }
+  #signin button {
+    width: 100%; margin-top: 22px; padding: 12px; border-radius: 8px; border: none;
+    background: var(--accent); color: white; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  #signin button:disabled { opacity: 0.5; }
+  #signin .error { color: #ff8080; font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+  /* ---- Trip screen ---- */
+  header.trip { margin-bottom: 20px; }
+  header.trip h1 { font-size: 22px; margin: 0 0 2px; }
+  header.trip .dest { color: var(--muted); font-size: 14px; }
+  header.trip .dates { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .status-pill {
+    display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 999px;
+    background: #223; color: var(--muted); margin-top: 8px; text-transform: capitalize;
+  }
+
+  h2.section { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted); margin: 28px 0 10px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
+    padding: 13px 14px; margin-bottom: 10px;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .badge.booked { background: rgba(46,125,79,0.25); color: #6fd396; }
+  .badge.pending { background: rgba(160,107,31,0.25); color: #e0a94a; }
+  .badge.unverified { background: rgba(122,46,46,0.25); color: #e08080; }
+  .badge.optional { background: rgba(122,46,46,0.15); color: var(--muted); }
+  .badge.open { background: rgba(160,107,31,0.25); color: #e0a94a; }
+  .badge.done { background: rgba(46,125,79,0.25); color: #6fd396; }
+
+  .card-meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .card-when { color: var(--text); font-size: 13px; margin-top: 6px; }
+  .card-prov { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .provenance {
+    margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--panel-border);
+    font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  }
+
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+
+  footer.status {
+    margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--panel-border);
+    color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; align-items: center;
+  }
+  footer.status button {
+    background: none; border: 1px solid var(--panel-border); color: var(--muted);
+    padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ============================= SIGN-IN SCREEN ============================= -->
+<div id="signin">
+  <h1>Helm</h1>
+  <p class="sub">Sign in with the account you created in Supabase.</p>
+  <form id="signin-form">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required />
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required />
+    <button type="submit" id="signin-btn">Sign in</button>
+    <div class="error" id="signin-error"></div>
+  </form>
+</div>
+
+<!-- ============================== TRIP SCREEN ================================ -->
+<div class="wrap" id="app" hidden>
+  <header class="trip">
+    <h1 id="trip-name">—</h1>
+    <div class="dest" id="trip-dest"></div>
+    <div class="dates" id="trip-dates"></div>
+    <span class="status-pill" id="trip-status"></span>
+  </header>
+
+  <h2 class="section">Bookings</h2>
+  <div id="bookings-list"></div>
+
+  <h2 class="section">Open items</h2>
+  <div id="tasks-list"></div>
+
+  <footer class="status">
+    <span id="last-loaded">—</span>
+    <button id="signout-btn">Sign out</button>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// =============================================================================
+// Helm — Phase 2: read-only trip view.
+//
+// CONFIG: fill these in from Supabase -> Project Settings -> API before
+// deploying. The anon/public key is meant to be embedded in client code like
+// this — it is NOT the secret key. Every request it makes is still filtered
+// by row-level security (owner_id = auth.uid()), so it can only ever return
+// your own rows once you're signed in, and nothing at all before that.
+// =============================================================================
+const SUPABASE_URL = "https://nzkkvyvlhcllljjyiqqyr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56a2t2eXZsaGNsbGpqeWlxcXlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NDY2NTEsImV4cCI6MjEwMzUyMjY1MX0.jUKjHZwHryP7EBTmI0inZpcoFlN2Eb_W3vFv8eTtVzo";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const els = {
+  signin: document.getElementById("signin"),
+  signinForm: document.getElementById("signin-form"),
+  signinBtn: document.getElementById("signin-btn"),
+  signinError: document.getElementById("signin-error"),
+  app: document.getElementById("app"),
+  tripName: document.getElementById("trip-name"),
+  tripDest: document.getElementById("trip-dest"),
+  tripDates: document.getElementById("trip-dates"),
+  tripStatus: document.getElementById("trip-status"),
+  bookingsList: document.getElementById("bookings-list"),
+  tasksList: document.getElementById("tasks-list"),
+  lastLoaded: document.getElementById("last-loaded"),
+  signoutBtn: document.getElementById("signout-btn"),
+};
+
+function fmtDate(d) {
+  if (!d) return null;
+  return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+function fmtDateTime(d) {
+  if (!d) return null;
+  return new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+function fmtRelative(d) {
+  if (!d) return "never verified";
+  const then = new Date(d), now = new Date();
+  const days = Math.floor((now - then) / 86400000);
+  if (days <= 0) return "verified today";
+  if (days === 1) return "verified yesterday";
+  if (days < 30) return `verified ${days}d ago`;
+  return `verified ${then.toLocaleDateString(undefined, { month: "short", year: "numeric" })}`;
+}
+
+function bookingCard(b) {
+  const when = b.start_at
+    ? fmtDateTime(b.start_at) + (b.end_at ? " – " + fmtDateTime(b.end_at) : "")
+    : null;
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div class="card-title">${b.title}</div>
+        <span class="badge ${b.status}">${b.status}</span>
+      </div>
+      ${b.provider ? `<div class="card-meta">${b.provider}${b.confirmation_number ? " · " + b.confirmation_number : ""}</div>` : ""}
+      ${when ? `<div class="card-when">${when}</div>` : ""}
+      ${b.location ? `<div class="card-prov">${b.location}</div>` : ""}
+      <div class="provenance">
+        <span>${b.source || "no source recorded"}</span>
+        <span>${fmtRelative(b.last_verified_at)}</span>
+      </div>
+    </div>`;
+}
+
+function taskCard(t) {
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div class="card-title">${t.title}</div>
+        <span class="badge ${t.status}">${t.status}</span>
+      </div>
+      ${t.due_date ? `<div class="card-when">Due ${fmtDate(t.due_date)}</div>` : ""}
+      <div class="provenance">
+        <span>${t.source || "no source recorded"}</span>
+        <span>${fmtRelative(t.last_verified_at)}</span>
+      </div>
+    </div>`;
+}
+
+async function loadTrip() {
+  // V1 scope is one trip; load the most recently created one that isn't archived.
+  const { data: trips, error: tripErr } = await sb
+    .from("trips")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (tripErr || !trips || trips.length === 0) {
+    els.tripName.textContent = "No trip found";
+    els.bookingsList.innerHTML = `<div class="empty">${tripErr ? tripErr.message : "No trips in the database yet."}</div>`;
+    return;
+  }
+
+  const trip = trips[0];
+  els.tripName.textContent = trip.name;
+  els.tripDest.textContent = trip.destination;
+  els.tripDates.textContent = `${fmtDate(trip.start_date)} – ${fmtDate(trip.end_date)}`;
+  els.tripStatus.textContent = trip.status;
+
+  const [{ data: bookings, error: bErr }, { data: tasks, error: tErr }] = await Promise.all([
+    sb.from("bookings").select("*").eq("trip_id", trip.id).order("start_at", { ascending: true, nullsFirst: false }),
+    sb.from("trip_tasks").select("*").eq("trip_id", trip.id).order("due_date", { ascending: true }),
+  ]);
+
+  els.bookingsList.innerHTML = bErr
+    ? `<div class="empty">${bErr.message}</div>`
+    : bookings.length
+      ? bookings.map(bookingCard).join("")
+      : `<div class="empty">No bookings yet.</div>`;
+
+  els.tasksList.innerHTML = tErr
+    ? `<div class="empty">${tErr.message}</div>`
+    : tasks.length
+      ? tasks.map(taskCard).join("")
+      : `<div class="empty">Nothing open.</div>`;
+
+  els.lastLoaded.textContent = "Loaded " + new Date().toLocaleTimeString();
+}
+
+async function showApp() {
+  els.signin.hidden = true;
+  els.app.hidden = false;
+  await loadTrip();
+}
+
+function showSignin(message) {
+  els.app.hidden = true;
+  els.signin.hidden = false;
+  els.signinError.textContent = message || "";
+}
+
+els.signinForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  els.signinBtn.disabled = true;
+  els.signinError.textContent = "";
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  els.signinBtn.disabled = false;
+
+  if (error) {
+    els.signinError.textContent = error.message;
+    return;
+  }
+  await showApp();
+});
+
+els.signoutBtn.addEventListener("click", async () => {
+  await sb.auth.signOut();
+  showSignin();
+});
+
+// On load, pick up an existing session (so you're not asked to sign in every
+// single time you open the page — Supabase keeps the session in the browser).
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    await showApp();
+  }
+})();
+</script>
+</body>
+</html>
