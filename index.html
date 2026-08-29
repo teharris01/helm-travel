@@ -1,361 +1,617 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Helm — Travel</title>
-
-<!-- Installable on your phone home screen: add-to-home-screen works from any browser
-     without needing a separate manifest file for this first version. -->
-
-<style>
-  :root {
-    color-scheme: light dark;
-    --bg: #0b0c0f;
-    --panel: #15171c;
-    --panel-border: #262931;
-    --text: #eef0f3;
-    --muted: #9aa1ad;
-    --accent: #5b8cff;
-    --booked: #2e7d4f;
-    --pending: #a06b1f;
-    --unverified: #7a2e2e;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 64px; }
-
-  /* ---- Sign-in screen ---- */
-  #signin { max-width: 360px; margin: 18vh auto 0; padding: 0 16px; }
-  #signin h1 { font-size: 20px; margin-bottom: 4px; }
-  #signin p.sub { color: var(--muted); font-size: 14px; margin-top: 0; margin-bottom: 24px; }
-  #signin label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
-  #signin input {
-    width: 100%; padding: 11px 12px; border-radius: 8px;
-    border: 1px solid var(--panel-border); background: var(--panel); color: var(--text);
-    font-size: 16px;
-  }
-  #signin button {
-    width: 100%; margin-top: 22px; padding: 12px; border-radius: 8px; border: none;
-    background: var(--accent); color: white; font-size: 15px; font-weight: 600; cursor: pointer;
-  }
-  #signin button:disabled { opacity: 0.5; }
-  #signin .error { color: #ff8080; font-size: 13px; margin-top: 12px; min-height: 18px; }
-
-  /* ---- Trip screen ---- */
-  header.trip { margin-bottom: 20px; }
-  header.trip h1 { font-size: 22px; margin: 0 0 2px; }
-  header.trip .dest { color: var(--muted); font-size: 14px; }
-  header.trip .dates { color: var(--muted); font-size: 14px; margin-top: 2px; }
-  .status-pill {
-    display: inline-block; font-size: 12px; padding: 2px 9px; border-radius: 999px;
-    background: #223; color: var(--muted); margin-top: 8px; text-transform: capitalize;
-  }
-
-  h2.section { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--muted); margin: 28px 0 10px; }
-
-  .card {
-    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
-    padding: 13px 14px; margin-bottom: 10px;
-  }
-  .card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-  .card-title { font-size: 15px; font-weight: 600; }
-  .badge {
-    font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
-    text-transform: uppercase; letter-spacing: 0.03em;
-  }
-  .badge.booked { background: rgba(46,125,79,0.25); color: #6fd396; }
-  .badge.pending { background: rgba(160,107,31,0.25); color: #e0a94a; }
-  .badge.unverified { background: rgba(122,46,46,0.25); color: #e08080; }
-  .badge.optional { background: rgba(122,46,46,0.15); color: var(--muted); }
-  .badge.open { background: rgba(160,107,31,0.25); color: #e0a94a; }
-  .badge.done { background: rgba(46,125,79,0.25); color: #6fd396; }
-
-  .card-meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .card-when { color: var(--text); font-size: 13px; margin-top: 6px; }
-  .card-prov { font-size: 12px; color: var(--muted); margin-top: 6px; }
-
-  .provenance {
-    margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--panel-border);
-    font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
-  }
-
-  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
-
-  .brief-card { margin-bottom: 22px; }
-  .brief-text { font-size: 14px; line-height: 1.5; margin-top: 2px; }
-  .brief-stale { color: #e0a94a; }
-
-  footer.status {
-    margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--panel-border);
-    color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; align-items: center;
-  }
-  footer.status button {
-    background: none; border: 1px solid var(--panel-border); color: var(--muted);
-    padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
-  }
-
-  [hidden] { display: none !important; }
-</style>
-</head>
-<body>
-
-<!-- ============================= SIGN-IN SCREEN ============================= -->
-<div id="signin">
-  <h1>Helm</h1>
-  <p class="sub">Sign in with the account you created in Supabase.</p>
-  <form id="signin-form">
-    <label for="email">Email</label>
-    <input id="email" type="email" autocomplete="username" required />
-    <label for="password">Password</label>
-    <input id="password" type="password" autocomplete="current-password" required />
-    <button type="submit" id="signin-btn">Sign in</button>
-    <div class="error" id="signin-error"></div>
-  </form>
-</div>
-
-<!-- ============================== TRIP SCREEN ================================ -->
-<div class="wrap" id="app" hidden>
-  <header class="trip">
-    <h1 id="trip-name">—</h1>
-    <div class="dest" id="trip-dest"></div>
-    <div class="dates" id="trip-dates"></div>
-    <span class="status-pill" id="trip-status"></span>
-  </header>
-
-  <div class="card brief-card" id="brief-card" hidden>
-    <div class="card-top">
-      <div class="card-title">Today</div>
-    </div>
-    <div class="brief-text" id="brief-text"></div>
-    <div class="provenance">
-      <span id="brief-generated"></span>
-    </div>
-  </div>
-
-  <h2 class="section">Bookings</h2>
-  <div id="bookings-list"></div>
-
-  <h2 class="section">Open items</h2>
-  <div id="tasks-list"></div>
-
-  <footer class="status">
-    <span id="last-loaded">—</span>
-    <button id="signout-btn">Sign out</button>
-  </footer>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>
-// =============================================================================
-// Helm — Phase 2: read-only trip view.
+// supabase/functions/daily-brief-lite/index.ts
 //
-// CONFIG: fill these in from Supabase -> Project Settings -> API before
-// deploying. The anon/public key is meant to be embedded in client code like
-// this — it is NOT the secret key. Every request it makes is still filtered
-// by row-level security (owner_id = auth.uid()), so it can only ever return
-// your own rows once you're signed in, and nothing at all before that.
-// =============================================================================
-const SUPABASE_URL = "https://nzkkvyvlhclljjyiqqyr.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im56a2t2eXZsaGNsbGpqeWlxcXlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NDY2NTEsImV4cCI6MjEwMzUyMjY1MX0.jUKjHZwHryP7EBTmI0inZpcoFlN2Eb_W3vFv8eTtVzo";
+// Helm — Phase 3, part 2: the Daily-Brief-lite job.
+//
+// Scheduled by Supabase Cron, once a day. On each run:
+//   1. Fetch today's events from each configured calendar (private iCal
+//      feeds — no OAuth needed).
+//   2. Apply simple, explicit rules to flag anything worth calling out
+//      (an unusually full day, back-to-back or overlapping events) — the
+//      rules decide what's notable, not the AI (per the architecture
+//      review's §07: AI's job is phrasing and exception detection within
+//      given rules, never deciding importance on its own).
+//   3. Pull this trip's open next actions (tasks + not-yet-booked items)
+//      straight from Supabase.
+//   4. Hand all of that, already-structured, to Claude with instructions
+//      to ONLY phrase it — not invent or reprioritize anything.
+//   5. Save the result to daily_briefs, and log the run to sync_log either
+//      way, so a failure is visible instead of silent (ADR-4).
+//
+// Uses the service-role key, so it bypasses RLS — every query is
+// therefore explicitly scoped to OWNER_ID by hand.
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const els = {
-  signin: document.getElementById("signin"),
-  signinForm: document.getElementById("signin-form"),
-  signinBtn: document.getElementById("signin-btn"),
-  signinError: document.getElementById("signin-error"),
-  app: document.getElementById("app"),
-  tripName: document.getElementById("trip-name"),
-  tripDest: document.getElementById("trip-dest"),
-  tripDates: document.getElementById("trip-dates"),
-  tripStatus: document.getElementById("trip-status"),
-  briefCard: document.getElementById("brief-card"),
-  briefText: document.getElementById("brief-text"),
-  briefGenerated: document.getElementById("brief-generated"),
-  bookingsList: document.getElementById("bookings-list"),
-  tasksList: document.getElementById("tasks-list"),
-  lastLoaded: document.getElementById("last-loaded"),
-  signoutBtn: document.getElementById("signout-btn"),
-};
+const OWNER_ID = "550260a8-2af5-411a-821e-9edb9106b0e2"; // Tim — single-user V1
+const JOB_NAME = "daily_brief_lite";
+const TIMEZONE = "America/New_York";
+const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
-function fmtDate(d) {
-  if (!d) return null;
-  // d is a plain "YYYY-MM-DD" date (no time/timezone) from Postgres. Parsing
-  // that directly with `new Date()` treats it as UTC midnight, which then
-  // rolls back a day once displayed in an earlier-than-UTC timezone (e.g.
-  // Eastern). Build the date from its local components instead so the day
-  // shown always matches the day stored.
-  const [y, m, day] = d.split("-").map(Number);
-  return new Date(y, m - 1, day).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-function fmtDateTime(d) {
-  if (!d) return null;
-  return new Date(d).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-function fmtRelative(d) {
-  if (!d) return "never verified";
-  const then = new Date(d), now = new Date();
-  const days = Math.floor((now - then) / 86400000);
-  if (days <= 0) return "verified today";
-  if (days === 1) return "verified yesterday";
-  if (days < 30) return `verified ${days}d ago`;
-  return `verified ${then.toLocaleDateString(undefined, { month: "short", year: "numeric" })}`;
+// Each configured calendar: a human label plus the name of the secret
+// holding its private iCal feed URL. Add more entries here later (e.g.
+// Family/Kids) once those links are available — nothing else needs to
+// change.
+const CALENDAR_SOURCES: { label: string; envVar: string }[] = [
+  { label: "Google Calendar", envVar: "GOOGLE_CALENDAR_ICAL_URL" },
+  { label: "Personal calendar", envVar: "CALENDAR_ME_ICAL_URL" },
+];
+
+interface EventInfo {
+  source: string;
+  summary: string;
+  allDay: boolean;
+  startMinutes: number | null; // minutes since local midnight, for gap math
+  endMinutes: number | null;
+  startDisplay: string | null; // human time, e.g. "9:00 AM"
+  endDisplay: string | null;
 }
 
-function fmtBriefTimestamp(d) {
-  const then = new Date(d), now = new Date();
-  const ageMs = now - then;
-  const timeStr = then.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  // If the last brief is more than a day and a half old, the daily job has
-  // likely stopped running silently — surface that here rather than let a
-  // stale-but-present brief look current (ADR-4's whole point).
-  const stale = ageMs > 36 * 60 * 60 * 1000;
-  return { text: `Generated ${timeStr}`, stale };
-}
+Deno.serve(async (_req) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SB_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-function renderBrief(brief) {
-  if (!brief) {
-    els.briefCard.hidden = true;
-    return;
-  }
-  els.briefText.textContent = brief.brief_text;
-  const { text, stale } = fmtBriefTimestamp(brief.generated_at);
-  els.briefGenerated.textContent = stale ? `${text} — this may be out of date` : text;
-  els.briefGenerated.className = stale ? "brief-stale" : "";
-  els.briefCard.hidden = false;
-}
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-function bookingCard(b) {
-  const when = b.start_at
-    ? fmtDateTime(b.start_at) + (b.end_at ? " – " + fmtDateTime(b.end_at) : "")
-    : null;
-  return `
-    <div class="card">
-      <div class="card-top">
-        <div class="card-title">${b.title}</div>
-        <span class="badge ${b.status}">${b.status}</span>
-      </div>
-      ${b.provider ? `<div class="card-meta">${b.provider}${b.confirmation_number ? " · " + b.confirmation_number : ""}</div>` : ""}
-      ${when ? `<div class="card-when">${when}</div>` : ""}
-      ${b.location ? `<div class="card-prov">${b.location}</div>` : ""}
-      <div class="provenance">
-        <span>${b.source || "no source recorded"}</span>
-        <span>${fmtRelative(b.last_verified_at)}</span>
-      </div>
-    </div>`;
-}
-
-function taskCard(t) {
-  return `
-    <div class="card">
-      <div class="card-top">
-        <div class="card-title">${t.title}</div>
-        <span class="badge ${t.status}">${t.status}</span>
-      </div>
-      ${t.due_date ? `<div class="card-when">Due ${fmtDate(t.due_date)}</div>` : ""}
-      <div class="provenance">
-        <span>${t.source || "no source recorded"}</span>
-        <span>${fmtRelative(t.last_verified_at)}</span>
-      </div>
-    </div>`;
-}
-
-async function loadTrip() {
-  // V1 scope is one trip; load the most recently created one that isn't archived.
-  const { data: trips, error: tripErr } = await sb
-    .from("trips")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (tripErr || !trips || trips.length === 0) {
-    els.tripName.textContent = "No trip found";
-    els.bookingsList.innerHTML = `<div class="empty">${tripErr ? tripErr.message : "No trips in the database yet."}</div>`;
-    return;
+  if (!anthropicKey) {
+    await logRun(supabase, "failure", "ANTHROPIC_API_KEY secret is not set.");
+    return json({ ok: false, error: "ANTHROPIC_API_KEY not set" }, 500);
   }
 
-  const trip = trips[0];
-  els.tripName.textContent = trip.name;
-  els.tripDest.textContent = trip.destination;
-  els.tripDates.textContent = `${fmtDate(trip.start_date)} – ${fmtDate(trip.end_date)}`;
-  els.tripStatus.textContent = trip.status;
+  const todayStr = todayInTimeZone(TIMEZONE);
+  const errors: string[] = [];
 
-  const [{ data: bookings, error: bErr }, { data: tasks, error: tErr }, { data: briefs, error: brErr }] = await Promise.all([
-    sb.from("bookings").select("*").eq("trip_id", trip.id).order("start_at", { ascending: true, nullsFirst: false }),
-    sb.from("trip_tasks").select("*").eq("trip_id", trip.id).order("due_date", { ascending: true }),
-    sb.from("daily_briefs").select("brief_text, generated_at").order("generated_at", { ascending: false }).limit(1),
-  ]);
-
-  // Daily brief is best-effort — if the table isn't there yet or the query
-  // fails, just hide the card rather than blocking the rest of the page.
-  renderBrief(!brErr && briefs && briefs.length ? briefs[0] : null);
-
-  els.bookingsList.innerHTML = bErr
-    ? `<div class="empty">${bErr.message}</div>`
-    : bookings.length
-      ? bookings.map(bookingCard).join("")
-      : `<div class="empty">No bookings yet.</div>`;
-
-  els.tasksList.innerHTML = tErr
-    ? `<div class="empty">${tErr.message}</div>`
-    : tasks.length
-      ? tasks.map(taskCard).join("")
-      : `<div class="empty">Nothing open.</div>`;
-
-  els.lastLoaded.textContent = "Loaded " + new Date().toLocaleTimeString();
-}
-
-async function showApp() {
-  els.signin.hidden = true;
-  els.app.hidden = false;
-  await loadTrip();
-}
-
-function showSignin(message) {
-  els.app.hidden = true;
-  els.signin.hidden = false;
-  els.signinError.textContent = message || "";
-}
-
-els.signinForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  els.signinBtn.disabled = true;
-  els.signinError.textContent = "";
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value;
-
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  els.signinBtn.disabled = false;
-
-  if (error) {
-    els.signinError.textContent = error.message;
-    return;
+  // ---- 1. Calendars -------------------------------------------------------
+  let events: EventInfo[] = [];
+  for (const src of CALENDAR_SOURCES) {
+    const url = Deno.env.get(src.envVar);
+    if (!url) {
+      errors.push(`${src.label}: no URL configured (secret ${src.envVar} is missing).`);
+      continue;
+    }
+    try {
+      const found = await fetchTodaysEvents(url, todayStr, TIMEZONE, src.label);
+      events.push(...found);
+    } catch (e) {
+      errors.push(`${src.label}: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
-  await showApp();
+  events.sort((a, b) => (a.startMinutes ?? -1) - (b.startMinutes ?? -1));
+
+  const { notes: calendarExceptions, eventNotes } = detectExceptions(events);
+
+  // ---- 2. Trip's next actions ----------------------------------------------
+  let tripSummary: {
+    tripName: string;
+    startDate: string;
+    openTasks: { title: string; due_date: string | null }[];
+    unbookedItems: { title: string; category: string; status: string }[];
+  } | null = null;
+
+  try {
+    const { data: trip, error: tripErr } = await supabase
+      .from("trips")
+      .select("id, name, start_date, status")
+      .eq("owner_id", OWNER_ID)
+      .neq("status", "completed")
+      .order("start_date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (tripErr) throw new Error(tripErr.message);
+
+    if (trip) {
+      const [taskRes, bookingRes] = await Promise.all([
+        supabase
+          .from("trip_tasks")
+          .select("title, due_date")
+          .eq("owner_id", OWNER_ID)
+          .eq("trip_id", trip.id)
+          .eq("status", "open")
+          .order("due_date", { ascending: true }),
+        supabase
+          .from("bookings")
+          .select("title, category, status")
+          .eq("owner_id", OWNER_ID)
+          .eq("trip_id", trip.id)
+          .in("status", ["pending", "optional", "unverified"]),
+      ]);
+
+      if (taskRes.error) throw new Error(taskRes.error.message);
+      if (bookingRes.error) throw new Error(bookingRes.error.message);
+
+      tripSummary = {
+        tripName: trip.name,
+        startDate: trip.start_date,
+        openTasks: taskRes.data ?? [],
+        unbookedItems: bookingRes.data ?? [],
+      };
+    }
+  } catch (e) {
+    errors.push(`Trip data: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  // ---- 3. Build the bullet lists directly from real data (no AI enumeration —
+  //    a model asked to list N events can drop or merge similar-looking ones,
+  //    as happened in testing with two same-titled "Shoulder" appointments;
+  //    building bullets in code makes that class of error impossible). Claude
+  //    is used for exactly one thing below: a single headline sentence,
+  //    grounded only in what the rules already flagged.
+  const todayBullets = events.length === 0
+    ? ["- Nothing on the calendar today."]
+    : events.map((e) => {
+      const time = e.allDay ? "All day" : (e.startDisplay ?? "");
+      const notes = eventNotes.get(e);
+      const suffix = notes && notes.length ? ` — ${notes.join("; ")}` : "";
+      return `- **${time}, ${e.summary}**${suffix}`;
+    });
+
+  const tripLines: string[] = [];
+  if (tripSummary && (tripSummary.openTasks.length || tripSummary.unbookedItems.length)) {
+    tripLines.push(`## Trip: ${tripSummary.tripName}`);
+    for (const t of tripSummary.openTasks) {
+      const due = t.due_date ? `due ${fmtDateInTimeZone(t.due_date, TIMEZONE)}` : "no due date";
+      tripLines.push(`- **${t.title}** — ${due}`);
+    }
+    for (const b of tripSummary.unbookedItems) {
+      tripLines.push(`- **${b.title}** — ${b.status}`);
+    }
+  }
+
+  let headline = "";
+  try {
+    headline = await phraseHeadline(anthropicKey, calendarExceptions);
+  } catch (e) {
+    errors.push(`AI headline: ${e instanceof Error ? e.message : String(e)}`);
+    // Deterministic fallback so a brief still gets produced even if the AI
+    // call fails outright — the bullets above never depended on it anyway.
+    headline = calendarExceptions.length
+      ? calendarExceptions.join(" ")
+      : "Nothing notable flagged for today.";
+  }
+
+  const briefText = [
+    headline,
+    "",
+    "## Today",
+    ...todayBullets,
+    ...(tripLines.length ? ["", ...tripLines] : []),
+  ].join("\n");
+
+  const status = errors.length === 0 ? "success" : "partial";
+  const detail = "Brief generated. " +
+    (errors.length ? `Errors: ${errors.join(" | ")}` : "No errors.");
+
+  {
+    const structuredInput = {
+      date: todayStr,
+      calendarEvents: events.map(({ source, summary, allDay, startDisplay, endDisplay }) => ({
+        source,
+        summary,
+        allDay,
+        start: startDisplay,
+        end: endDisplay,
+      })),
+      calendarExceptions,
+      trip: tripSummary,
+    };
+    const { error: insertErr } = await supabase.from("daily_briefs").insert({
+      owner_id: OWNER_ID,
+      brief_text: briefText,
+      status,
+      detail,
+      raw_data: structuredInput,
+    });
+    if (insertErr) errors.push(`Saving brief: ${insertErr.message}`);
+  }
+
+  await logRun(supabase, status, detail);
+
+  return json({ ok: errors.length === 0, briefText, errors });
 });
 
-els.signoutBtn.addEventListener("click", async () => {
-  await sb.auth.signOut();
-  showSignin();
-});
+// -----------------------------------------------------------------------------
+// Calendar fetching + minimal ICS parsing (no external library — Supabase's
+// Edge runtime is Deno, and this keeps the function self-contained).
+// -----------------------------------------------------------------------------
 
-// On load, pick up an existing session (so you're not asked to sign in every
-// single time you open the page — Supabase keeps the session in the browser).
-(async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    await showApp();
+async function fetchTodaysEvents(
+  rawUrl: string,
+  todayStr: string,
+  timeZone: string,
+  sourceLabel: string,
+): Promise<EventInfo[]> {
+  const url = rawUrl.trim().replace(/^webcal:\/\//i, "https://");
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`could not fetch calendar feed (HTTP ${resp.status})`);
+  const text = await resp.text();
+  const rawEvents = parseICS(text);
+
+  const results: EventInfo[] = [];
+  for (const ev of rawEvents) {
+    try {
+      if (!occursOn(ev, todayStr, timeZone)) continue;
+      const allDay = ev.dtstartAllDay;
+      const startDisplay = allDay ? null : icsTimeDisplay(ev.dtstart, timeZone);
+      const endDisplay = allDay || !ev.dtend ? null : icsTimeDisplay(ev.dtend, timeZone);
+      const startMinutes = allDay ? null : icsMinutesSinceMidnight(ev.dtstart, timeZone);
+      const endMinutes = allDay || !ev.dtend ? null : icsMinutesSinceMidnight(ev.dtend, timeZone);
+      results.push({
+        source: sourceLabel,
+        summary: ev.summary || "(untitled event)",
+        allDay,
+        startMinutes,
+        endMinutes,
+        startDisplay,
+        endDisplay,
+      });
+    } catch {
+      // Skip any single event we can't confidently evaluate rather than
+      // fail the whole feed over one malformed entry.
+      continue;
+    }
   }
-})();
-</script>
-</body>
-</html>
+  return results;
+}
+
+interface RawEvent {
+  summary: string;
+  dtstart: string;
+  dtstartAllDay: boolean;
+  dtend?: string;
+  rrule?: string;
+  exdates: string[];
+}
+
+function unfoldICS(text: string): string[] {
+  const rawLines = text.split(/\r\n|\n|\r/);
+  const lines: string[] = [];
+  for (const line of rawLines) {
+    if ((line.startsWith(" ") || line.startsWith("\t")) && lines.length > 0) {
+      lines[lines.length - 1] += line.slice(1);
+    } else {
+      lines.push(line);
+    }
+  }
+  return lines;
+}
+
+function parseICS(text: string): RawEvent[] {
+  const lines = unfoldICS(text);
+  const events: RawEvent[] = [];
+  let cur: (Partial<RawEvent> & { exdates: string[] }) | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === "BEGIN:VEVENT") {
+      cur = { exdates: [] };
+      continue;
+    }
+    if (trimmed === "END:VEVENT") {
+      if (cur && cur.dtstart) events.push(cur as RawEvent);
+      cur = null;
+      continue;
+    }
+    if (!cur) continue;
+
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const keyPart = line.slice(0, colonIdx);
+    const value = line.slice(colonIdx + 1);
+    const key = keyPart.split(";")[0].toUpperCase();
+
+    if (key === "SUMMARY") {
+      cur.summary = value;
+    } else if (key === "DTSTART") {
+      cur.dtstart = value;
+      cur.dtstartAllDay = keyPart.toUpperCase().includes("VALUE=DATE") || /^\d{8}$/.test(value);
+    } else if (key === "DTEND") {
+      cur.dtend = value;
+    } else if (key === "RRULE") {
+      cur.rrule = value;
+    } else if (key === "EXDATE") {
+      cur.exdates.push(...value.split(","));
+    }
+  }
+
+  return events;
+}
+
+// Parses an ICS date/time value into its UTC parts. Returns null if the
+// format isn't recognized.
+function parseICSValue(value: string): { y: number; mo: number; d: number; h: number; mi: number; s: number; hasTime: boolean; isUTC: boolean } | null {
+  const m = value.match(/^(\d{4})(\d{2})(\d{2})(T(\d{2})(\d{2})(\d{2})(Z)?)?$/);
+  if (!m) return null;
+  const [, y, mo, d, timePart, h, mi, s, z] = m;
+  return {
+    y: Number(y), mo: Number(mo), d: Number(d),
+    h: timePart ? Number(h) : 0, mi: timePart ? Number(mi) : 0, s: timePart ? Number(s) : 0,
+    hasTime: !!timePart, isUTC: !!z,
+  };
+}
+
+// The local calendar date (YYYY-MM-DD, in `timeZone`) that a value falls on.
+function icsDateToLocalDateStr(value: string, timeZone: string): string {
+  const p = parseICSValue(value);
+  if (!p) throw new Error(`unrecognized date format: ${value}`);
+  if (!p.hasTime) return `${pad4(p.y)}-${pad2(p.mo)}-${pad2(p.d)}`;
+  if (p.isUTC) {
+    const dt = new Date(Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s));
+    return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(dt);
+  }
+  // Floating or TZID-qualified time: assume it's already expressed in the
+  // calendar owner's local zone, which for these personal feeds matches
+  // TIMEZONE closely enough for a "lite" brief.
+  return `${pad4(p.y)}-${pad2(p.mo)}-${pad2(p.d)}`;
+}
+
+function icsTimeDisplay(value: string, timeZone: string): string | null {
+  const p = parseICSValue(value);
+  if (!p || !p.hasTime) return null;
+  if (p.isUTC) {
+    const dt = new Date(Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s));
+    return new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(dt);
+  }
+  const dt = new Date(Date.UTC(2000, 0, 1, p.h, p.mi, p.s));
+  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(dt);
+}
+
+function icsMinutesSinceMidnight(value: string, timeZone: string): number | null {
+  const p = parseICSValue(value);
+  if (!p || !p.hasTime) return null;
+  if (p.isUTC) {
+    const dt = new Date(Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s));
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(dt);
+    const h = Number(parts.find((x) => x.type === "hour")?.value ?? "0");
+    const mi = Number(parts.find((x) => x.type === "minute")?.value ?? "0");
+    return h * 60 + mi;
+  }
+  return p.h * 60 + p.mi;
+}
+
+function pad2(n: number): string { return String(n).padStart(2, "0"); }
+function pad4(n: number): string { return String(n).padStart(4, "0"); }
+
+function dayCodeFromDate(d: Date): string {
+  const codes = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+  return codes[d.getUTCDay()];
+}
+
+// The day-of-month (1-31) of the `ordinal`-th occurrence of weekday `code`
+// in the given month, or null if that occurrence doesn't exist (e.g. a
+// "5th Thursday" in a month that only has four). Negative ordinal counts
+// from the end of the month (-1 = last occurrence).
+function nthWeekdayOfMonth(year: number, month0: number, code: string, ordinal: number): number | null {
+  const codes = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+  const targetDow = codes.indexOf(code);
+  if (targetDow === -1 || ordinal === 0) return null;
+  const daysInMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+  const matches: number[] = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (new Date(Date.UTC(year, month0, d)).getUTCDay() === targetDow) matches.push(d);
+  }
+  if (ordinal > 0) return matches[ordinal - 1] ?? null;
+  return matches[matches.length + ordinal] ?? null;
+}
+
+// Does this (possibly recurring) event occur on todayStr? Handles the
+// common recurrence shapes (DAILY/WEEKLY/MONTHLY/YEARLY with INTERVAL,
+// COUNT, UNTIL, and BYDAY for weekly) — anything more exotic falls back to
+// treating the event as non-recurring, which is an acceptable simplification
+// for a "lite" brief.
+function occursOn(ev: RawEvent, todayStr: string, timeZone: string): boolean {
+  const baseDateStr = icsDateToLocalDateStr(ev.dtstart, timeZone);
+
+  if (ev.exdates.some((ex) => {
+    try { return icsDateToLocalDateStr(ex, timeZone) === todayStr; } catch { return false; }
+  })) {
+    return false;
+  }
+
+  if (!ev.rrule) return baseDateStr === todayStr;
+
+  const today = new Date(todayStr + "T00:00:00Z");
+  const base = new Date(baseDateStr + "T00:00:00Z");
+  if (today < base) return false;
+
+  const params: Record<string, string> = {};
+  for (const part of ev.rrule.split(";")) {
+    const [k, v] = part.split("=");
+    if (k && v) params[k.toUpperCase()] = v;
+  }
+  const freq = params.FREQ;
+  const interval = params.INTERVAL ? parseInt(params.INTERVAL, 10) || 1 : 1;
+
+  if (params.UNTIL) {
+    try {
+      if (todayStr > icsDateToLocalDateStr(params.UNTIL, timeZone)) return false;
+    } catch { /* ignore malformed UNTIL */ }
+  }
+
+  const dayDiff = Math.round((today.getTime() - base.getTime()) / 86400000);
+
+  if (freq === "DAILY") {
+    if (dayDiff % interval !== 0) return false;
+    if (params.COUNT && dayDiff / interval >= parseInt(params.COUNT, 10)) return false;
+    return true;
+  }
+
+  if (freq === "WEEKLY") {
+    const weekDiff = Math.floor(dayDiff / 7);
+    if (weekDiff % interval !== 0) return false;
+    const byday = params.BYDAY ? params.BYDAY.split(",") : [dayCodeFromDate(base)];
+    if (!byday.includes(dayCodeFromDate(today))) return false;
+    if (params.COUNT) {
+      let count = 0;
+      const cur = new Date(base);
+      while (cur <= today) {
+        const wd = Math.floor((cur.getTime() - base.getTime()) / (7 * 86400000));
+        if (wd % interval === 0 && byday.includes(dayCodeFromDate(cur))) count++;
+        cur.setUTCDate(cur.getUTCDate() + 1);
+      }
+      if (count > parseInt(params.COUNT, 10)) return false;
+    }
+    return true;
+  }
+
+  if (freq === "MONTHLY") {
+    const monthDiff = (today.getUTCFullYear() - base.getUTCFullYear()) * 12 + (today.getUTCMonth() - base.getUTCMonth());
+    if (monthDiff < 0 || monthDiff % interval !== 0) return false;
+    if (params.COUNT && monthDiff / interval >= parseInt(params.COUNT, 10)) return false;
+
+    if (params.BYDAY) {
+      // "Nth weekday of the month" (e.g. BYDAY=TH;BYSETPOS=5 = the 5th
+      // Thursday), or BYDAY=2FR-style with the ordinal folded into the
+      // token itself. Without this, a plain "same day-of-month as the
+      // first occurrence" check can coincidentally match the wrong day
+      // (this is the bug that caused "North Clinic" and "WakeMed OR" to
+      // wrongly show up — both started on some month's 29th, which is
+      // not what BYDAY/BYSETPOS actually means).
+      let matched = false;
+      for (const entry of params.BYDAY.split(",")) {
+        const m = entry.match(/^(-?\d+)?(SU|MO|TU|WE|TH|FR|SA)$/);
+        if (!m) continue;
+        const [, ordStr, code] = m;
+        const ordinal = ordStr ? parseInt(ordStr, 10) : (params.BYSETPOS ? parseInt(params.BYSETPOS, 10) : null);
+        if (ordinal != null) {
+          const day = nthWeekdayOfMonth(today.getUTCFullYear(), today.getUTCMonth(), code, ordinal);
+          if (day === today.getUTCDate()) { matched = true; break; }
+        } else if (dayCodeFromDate(today) === code) {
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) return false;
+    } else {
+      if (today.getUTCDate() !== base.getUTCDate()) return false;
+    }
+    return true;
+  }
+
+  if (freq === "YEARLY") {
+    if (today.getUTCDate() !== base.getUTCDate() || today.getUTCMonth() !== base.getUTCMonth()) return false;
+    const yearDiff = today.getUTCFullYear() - base.getUTCFullYear();
+    if (yearDiff < 0 || yearDiff % interval !== 0) return false;
+    if (params.COUNT && yearDiff / interval >= parseInt(params.COUNT, 10)) return false;
+    return true;
+  }
+
+  // Unrecognized FREQ — treat as non-recurring rather than guess.
+  return baseDateStr === todayStr;
+}
+
+function todayInTimeZone(timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+// -----------------------------------------------------------------------------
+// Rule-based exception detection. This decides what's notable; the AI step
+// below only phrases what these rules already flagged.
+// -----------------------------------------------------------------------------
+
+// Returns the overall list of flagged exceptions (used to ground the AI's
+// one-line headline) plus a map from a specific event to the note(s) that
+// apply to it (used to annotate that event's bullet directly, in code).
+function detectExceptions(events: EventInfo[]): { notes: string[]; eventNotes: Map<EventInfo, string[]> } {
+  const notes: string[] = [];
+  const eventNotes = new Map<EventInfo, string[]>();
+  const addEventNote = (ev: EventInfo, text: string) => {
+    const list = eventNotes.get(ev) ?? [];
+    list.push(text);
+    eventNotes.set(ev, list);
+  };
+
+  if (events.length === 0) {
+    notes.push("No events scheduled today.");
+  } else if (events.length >= 6) {
+    notes.push(`Unusually full day: ${events.length} events scheduled.`);
+  }
+
+  const timed = events
+    .filter((e) => !e.allDay && e.startMinutes != null)
+    .sort((a, b) => (a.startMinutes! - b.startMinutes!));
+
+  for (let i = 1; i < timed.length; i++) {
+    const prev = timed[i - 1];
+    const cur = timed[i];
+    if (prev.endMinutes == null || cur.startMinutes == null) continue;
+    const gap = cur.startMinutes - prev.endMinutes;
+    if (gap < 0) {
+      notes.push(`Overlap: "${cur.summary}" starts before "${prev.summary}" ends.`);
+      addEventNote(cur, `overlaps with "${prev.summary}"`);
+    } else if (gap <= 10) {
+      notes.push(`Back-to-back: "${cur.summary}" follows "${prev.summary}" with only ${gap} minute(s) between.`);
+      addEventNote(cur, `back-to-back after "${prev.summary}"`);
+    }
+  }
+
+  return { notes, eventNotes };
+}
+
+// Formats a plain "YYYY-MM-DD" Postgres date column for display, without
+// going through a timezone-sensitive Date parse (same reasoning as the
+// site's own fmtDate: parsing "YYYY-MM-DD" as UTC can roll the day back once
+// displayed in an earlier zone).
+function fmtDateInTimeZone(dateStr: string, timeZone: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12)); // noon UTC avoids any DST edge
+  return new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric" }).format(dt);
+}
+
+// -----------------------------------------------------------------------------
+// AI phrasing — the one thin wrapper this whole job routes AI calls through
+// (per ADR-6 / the architecture review's §07 recommendation). Its ONLY job
+// is a single headline sentence; every bullet is built from real data above,
+// in code, so the AI can never drop or invent a calendar event or task —
+// it can only get one sentence wrong, and a fallback covers even that.
+// -----------------------------------------------------------------------------
+
+async function phraseHeadline(apiKey: string, exceptions: string[]): Promise<string> {
+  const prompt = "Write ONE short, plain, friendly sentence — no bullet marker, no quotation marks, no markdown — " +
+    "as the headline for someone's daily brief. Base it ONLY on this list of already-flagged exceptions; do not " +
+    "invent or mention anything not in this list. Do not give advice. If the list is empty, write a plain, " +
+    "factual one-liner saying nothing notable was flagged for today.\n\n" +
+    "Exceptions:\n" + JSON.stringify(exceptions, null, 2);
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 100,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Anthropic API ${resp.status} — ${body}`);
+  }
+
+  const result = await resp.json();
+  const text = result?.content?.[0]?.text;
+  if (!text) throw new Error("Anthropic API returned no text content.");
+  // Strip surrounding quotes if the model added any despite being asked not to.
+  return String(text).trim().replace(/^["']|["']$/g, "");
+}
+
+// deno-lint-ignore no-explicit-any
+async function logRun(supabase: any, status: "success" | "partial" | "failure", detail: string) {
+  await supabase.from("sync_log").insert({
+    owner_id: OWNER_ID,
+    job_name: JOB_NAME,
+    status,
+    detail,
+  });
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
