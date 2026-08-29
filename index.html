@@ -89,6 +89,10 @@
 
   .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
 
+  .brief-card { margin-bottom: 22px; }
+  .brief-text { font-size: 14px; line-height: 1.5; margin-top: 2px; }
+  .brief-stale { color: #e0a94a; }
+
   footer.status {
     margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--panel-border);
     color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; align-items: center;
@@ -125,6 +129,16 @@
     <div class="dates" id="trip-dates"></div>
     <span class="status-pill" id="trip-status"></span>
   </header>
+
+  <div class="card brief-card" id="brief-card" hidden>
+    <div class="card-top">
+      <div class="card-title">Today</div>
+    </div>
+    <div class="brief-text" id="brief-text"></div>
+    <div class="provenance">
+      <span id="brief-generated"></span>
+    </div>
+  </div>
 
   <h2 class="section">Bookings</h2>
   <div id="bookings-list"></div>
@@ -164,6 +178,9 @@ const els = {
   tripDest: document.getElementById("trip-dest"),
   tripDates: document.getElementById("trip-dates"),
   tripStatus: document.getElementById("trip-status"),
+  briefCard: document.getElementById("brief-card"),
+  briefText: document.getElementById("brief-text"),
+  briefGenerated: document.getElementById("brief-generated"),
   bookingsList: document.getElementById("bookings-list"),
   tasksList: document.getElementById("tasks-list"),
   lastLoaded: document.getElementById("last-loaded"),
@@ -192,6 +209,29 @@ function fmtRelative(d) {
   if (days === 1) return "verified yesterday";
   if (days < 30) return `verified ${days}d ago`;
   return `verified ${then.toLocaleDateString(undefined, { month: "short", year: "numeric" })}`;
+}
+
+function fmtBriefTimestamp(d) {
+  const then = new Date(d), now = new Date();
+  const ageMs = now - then;
+  const timeStr = then.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  // If the last brief is more than a day and a half old, the daily job has
+  // likely stopped running silently — surface that here rather than let a
+  // stale-but-present brief look current (ADR-4's whole point).
+  const stale = ageMs > 36 * 60 * 60 * 1000;
+  return { text: `Generated ${timeStr}`, stale };
+}
+
+function renderBrief(brief) {
+  if (!brief) {
+    els.briefCard.hidden = true;
+    return;
+  }
+  els.briefText.textContent = brief.brief_text;
+  const { text, stale } = fmtBriefTimestamp(brief.generated_at);
+  els.briefGenerated.textContent = stale ? `${text} — this may be out of date` : text;
+  els.briefGenerated.className = stale ? "brief-stale" : "";
+  els.briefCard.hidden = false;
 }
 
 function bookingCard(b) {
@@ -249,10 +289,15 @@ async function loadTrip() {
   els.tripDates.textContent = `${fmtDate(trip.start_date)} – ${fmtDate(trip.end_date)}`;
   els.tripStatus.textContent = trip.status;
 
-  const [{ data: bookings, error: bErr }, { data: tasks, error: tErr }] = await Promise.all([
+  const [{ data: bookings, error: bErr }, { data: tasks, error: tErr }, { data: briefs, error: brErr }] = await Promise.all([
     sb.from("bookings").select("*").eq("trip_id", trip.id).order("start_at", { ascending: true, nullsFirst: false }),
     sb.from("trip_tasks").select("*").eq("trip_id", trip.id).order("due_date", { ascending: true }),
+    sb.from("daily_briefs").select("brief_text, generated_at").order("generated_at", { ascending: false }).limit(1),
   ]);
+
+  // Daily brief is best-effort — if the table isn't there yet or the query
+  // fails, just hide the card rather than blocking the rest of the page.
+  renderBrief(!brErr && briefs && briefs.length ? briefs[0] : null);
 
   els.bookingsList.innerHTML = bErr
     ? `<div class="empty">${bErr.message}</div>`
