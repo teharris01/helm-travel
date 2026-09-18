@@ -146,6 +146,140 @@
   .review-card .save-btn:disabled { opacity: 0.5; }
   .review-card .saved-note { color: var(--muted); font-size: 12px; margin-top: 8px; }
 
+  /* =========================================================================
+     Travel dashboard — multi-trip list + per-trip detail view.
+     Ported from Tim's "Travel Dashboard" artifact and adapted to Helm's dark
+     theme (the artifact itself is a light-mode mockup — panels/pills below use
+     Helm's existing --panel/--panel-border/--muted rather than its palette,
+     while each trip keeps its own gradient color identity via --tclr/-dark/-soft
+     set inline per card so new trips added later don't need any CSS changes).
+     ========================================================================= */
+
+  /* ---- stats bar ---- */
+  .stats-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat-card { flex: 1; min-width: 130px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 11px 14px; }
+  .stat-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; }
+  .stat-value { font-size: 20px; font-weight: 800; margin-top: 2px; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ---- list sections ---- */
+  .list-section { margin-bottom: 26px; }
+  .list-section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+
+  /* ---- trip card grid ---- */
+  .trip-grid2 { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 640px) { .trip-grid2 { grid-template-columns: 1fr 1fr; } }
+  .trip-card2 { border-radius: 14px; overflow: hidden; background: var(--panel); border: 1px solid var(--panel-border); cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+  .trip-card2:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,.35); }
+  .trip-card2.next { box-shadow: 0 0 0 2px var(--tclr, var(--accent)); }
+  .trip-card2:focus-visible { outline: 2px solid var(--tclr, var(--accent)); outline-offset: 2px; }
+  .tc-header { padding: 14px 16px 12px; color: #fff; background: linear-gradient(135deg, var(--tclr-dark, #2a3b6b), var(--tclr, var(--accent))); }
+  .tc-top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .tc-icon { font-size: 18px; }
+  .tc-badges { display: flex; gap: 6px; }
+  .tc-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,.22); }
+  .tc-badge.tc-next { background: #fff; color: var(--tclr-dark, #22345c); }
+  .tc-dest { font-size: 17px; font-weight: 800; margin-top: 8px; }
+  .tc-dates { margin-top: 4px; }
+  .tc-dates span { display: block; font-size: 12.5px; font-weight: 700; opacity: .95; }
+  .tc-body { padding: 12px 16px 14px; }
+  .tc-people { font-size: 12px; color: var(--muted); }
+  .tc-summary { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+  .tc-chips { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+
+  /* ---- status pill system ---- */
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .pill-booked { background: rgba(46,125,79,.25); color: #6fd396; }
+  .pill-requested { background: rgba(160,107,31,.25); color: #e0a94a; }
+  .pill-open { background: rgba(255,255,255,.08); color: var(--muted); }
+  .pill-flag { background: rgba(122,46,46,.28); color: #e08080; }
+  .pill-info { background: rgba(91,140,255,.18); color: #9db8ff; }
+
+  /* ---- someday / archive mini-cards ---- */
+  .mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 10px; }
+  .mini-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 13px 15px; }
+  .mini-card.faded { opacity: .65; }
+  .mini-icon { font-size: 18px; }
+  .mini-title { font-weight: 700; font-size: 13.5px; margin-top: 6px; }
+  .mini-desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .mini-status { font-size: 10.5px; color: var(--accent); font-weight: 700; margin-top: 7px; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* ---- detail view ---- */
+  .detail-back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 700; font-size: 13.5px; cursor: pointer; margin-bottom: 14px; background: none; border: none; padding: 0; font-family: inherit; }
+  .detail-back:hover { text-decoration: underline; }
+  .hero { color: #fff; border-radius: 16px; padding: 22px; margin-bottom: 18px; background: linear-gradient(135deg, var(--tclr-dark, #2a3b6b), var(--tclr, var(--accent))); }
+  .hero .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 11.5px; font-weight: 700; opacity: .88; }
+  .hero h1 { color: #fff; font-size: 1.5rem; line-height: 1.15; margin: 6px 0 3px; }
+  .hero .daterange { font-size: .92rem; font-weight: 700; opacity: .95; }
+  .hero .hero-subtitle { font-size: .88rem; opacity: .92; margin-top: 6px; }
+  .chips-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+  .chip { padding: 5px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: #fff; }
+  .chip-done { background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.36); }
+  .chip-requested { background: rgba(255,255,255,.14); border: 1px dashed rgba(255,255,255,.62); }
+  .chip-open { background: rgba(255,255,255,.08); border: 1px dashed rgba(255,255,255,.42); }
+  .chip-flag { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.6); }
+
+  .detail-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 760px) { .detail-grid { grid-template-columns: 1.4fr .95fr; } }
+
+  .dcard { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 16px 17px; margin-bottom: 14px; }
+  .dcard h2 { font-size: 1.02rem; margin: 0 0 12px; }
+  .dcard h3 { font-size: .92rem; margin: 0 0 4px; }
+  .dcard p { margin: 6px 0; font-size: 13.5px; line-height: 1.45; }
+  .dcard .field-sub { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  .flight-visual { margin-bottom: 14px; }
+  .flight-visual:last-of-type { margin-bottom: 2px; }
+  .flight-leg-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+  .flight-path { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 4px; }
+  .flight-stop { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; min-width: 46px; }
+  .flight-stop-code { font-size: 14px; font-weight: 800; color: var(--text); white-space: nowrap; }
+  .flight-stop-time { font-size: 11.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; font-weight: 600; }
+  .flight-connector { flex: 0 1 70px; display: flex; flex-direction: column; align-items: center; padding: 0 6px; min-width: 40px; margin-top: 7px; }
+  .flight-connector-line { width: 100%; height: 2px; background: var(--panel-border); position: relative; }
+  .flight-connector-plane { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-size: 10px; color: var(--tclr, var(--accent)); background: var(--panel); padding: 0 3px; line-height: 1; }
+  .flight-connector-num { font-size: 11px; color: var(--muted); margin-top: 6px; white-space: nowrap; text-align: center; font-weight: 600; }
+  .flight-layover-chip { font-size: 10.5px; font-weight: 700; color: #e0a94a; background: rgba(160,107,31,.2); padding: 2px 6px; border-radius: 6px; margin-top: 4px; white-space: nowrap; }
+  .flight-conf { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+
+  .timeline { margin-top: 2px; }
+  .tl-row { display: grid; grid-template-columns: 62px 1fr auto; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--panel-border); }
+  .tl-row:first-child { border-top: 0; padding-top: 0; }
+  .tl-date { font-size: 11.5px; font-weight: 800; color: var(--tclr, var(--accent)); padding-top: 1px; white-space: nowrap; }
+  .tl-date.tl-none { color: var(--muted); font-weight: 700; }
+  .tl-body strong { font-size: 13.5px; }
+
+  .priority-row { display: grid; grid-template-columns: 24px 1fr auto; gap: 9px; align-items: center; padding: 10px 0; border-top: 1px solid var(--panel-border); }
+  .priority-row:first-child { border-top: 0; padding-top: 0; }
+  .num { height: 24px; width: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--tclr, var(--accent)); color: #fff; font-weight: 800; font-size: 11.5px; flex-shrink: 0; }
+  .num.flag { background: #a33; }
+
+  .decision-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; font-size: 13.5px; }
+  .decision-item .check { font-weight: 800; color: #6fd396; flex-shrink: 0; }
+
+  .flag-box { background: rgba(122,46,46,.18); border: 1px solid rgba(224,128,128,.3); border-radius: 10px; padding: 11px 13px; color: #f0b8b8; font-size: 13px; margin-top: 8px; }
+  .flag-box strong { color: #f5cccc; }
+  .callout { background: rgba(255,255,255,.04); border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px 14px; margin-top: 10px; font-size: 13px; }
+
+  .option { border: 1px solid var(--panel-border); border-radius: 12px; padding: 13px 14px; margin-top: 10px; }
+  .option.reco { border-color: var(--accent); background: rgba(91,140,255,.06); }
+  .option h3 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .option .price { white-space: nowrap; color: var(--muted); font-weight: 700; font-size: 12px; }
+  .reco-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; margin-left: 7px; vertical-align: middle; }
+  .option ul { margin: 7px 0 0; padding-left: 18px; font-size: 13px; }
+  .option li { margin: 3px 0; }
+  .tag { display: inline-block; background: rgba(91,140,255,.14); color: #9db8ff; padding: 3px 7px; border-radius: 7px; font-size: 11px; font-weight: 700; margin: 3px 5px 3px 0; }
+
+  .day { display: grid; grid-template-columns: 78px 1fr; gap: 13px; padding: 14px 0; border-top: 1px solid var(--panel-border); }
+  .day:first-of-type { border-top: 0; padding-top: 4px; }
+  .day-date { font-weight: 800; color: var(--tclr, var(--accent)); font-size: 12.5px; }
+  .day-date span { display: block; color: var(--muted); font-weight: 600; font-size: 10.5px; margin-top: 2px; }
+
+  .dcard table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 12.5px; }
+  .dcard th, .dcard td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+  .dcard th { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .dcard .total-row { font-weight: 800; }
+
   footer.status {
     margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--panel-border);
     color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; align-items: center;
@@ -197,39 +331,67 @@
     </div>
   </div>
 
-  <!-- ---- Travel view: the trip detail page from Phase 2. ---- -->
+  <!-- ---- Travel view: multi-trip list (default) + per-trip detail. ---- -->
   <div class="view" id="view-travel" hidden>
-    <header class="trip">
-      <h1 id="trip-name">—</h1>
-      <div class="dest" id="trip-dest"></div>
-      <div class="dates" id="trip-dates"></div>
-      <span class="status-pill" id="trip-status"></span>
-    </header>
 
-    <!-- ---- Phase 4: resurfaced memory of a past trip to the same
-         destination, if one exists. Rendered above everything else so it's
-         seen without having to look for it (the whole point of "resurfacing
-         unprompted"). ---- -->
-    <div id="memory-section"></div>
+    <!-- ---- List: all trips, grouped by category. ---- -->
+    <div id="travel-list">
+      <div class="stats-bar" id="travel-stats"></div>
 
-    <h2 class="section">Bookings</h2>
-    <div id="bookings-list"></div>
-
-    <h2 class="section">Open items</h2>
-    <div id="tasks-list"></div>
-
-    <!-- ---- Phase 4: post-trip review capture. Always available, not just
-         after the scheduled Todoist prompt fires — Tim may want to jot
-         something down early or edit it later. ---- -->
-    <h2 class="section">Trip review</h2>
-    <div class="card review-card">
-      <textarea id="review-notes" placeholder="Anything worth remembering next time?"></textarea>
-      <div class="would-return">
-        <button type="button" class="wr-btn" data-value="true">Would return</button>
-        <button type="button" class="wr-btn" data-value="false">Would not return</button>
+      <div class="list-section">
+        <div class="list-section-title">Upcoming trips · tap one for the full detail</div>
+        <div class="trip-grid2" id="travel-upcoming"></div>
       </div>
-      <button type="button" id="review-save-btn" class="save-btn">Save review</button>
-      <div class="saved-note" id="review-saved-note" hidden></div>
+
+      <div class="list-section">
+        <div class="list-section-title">Travel ideas · someday</div>
+        <div class="mini-grid" id="travel-someday"></div>
+      </div>
+
+      <div class="list-section">
+        <div class="list-section-title">Trip archive</div>
+        <div class="mini-grid" id="travel-archive"></div>
+      </div>
+    </div>
+
+    <!-- ---- Detail: one trip, driven by trips.detail JSON. ---- -->
+    <div id="travel-detail" hidden>
+      <button type="button" class="detail-back" id="detail-back-btn">&larr; All trips</button>
+
+      <div id="detail-hero"></div>
+      <div class="detail-grid">
+        <main id="detail-main"></main>
+        <aside id="detail-aside"></aside>
+      </div>
+
+      <!-- ---- Phase 4: resurfaced memory of a past trip to the same
+           destination, if one exists. Rendered above the fallback
+           bookings/tasks lists so it's seen without having to look for it. ---- -->
+      <div id="memory-section"></div>
+
+      <div id="bookings-section" hidden>
+        <h2 class="section">Bookings</h2>
+        <div id="bookings-list"></div>
+      </div>
+
+      <div id="tasks-section" hidden>
+        <h2 class="section">Open items</h2>
+        <div id="tasks-list"></div>
+      </div>
+
+      <!-- ---- Phase 4: post-trip review capture. Always available, not just
+           after the scheduled Todoist prompt fires — Tim may want to jot
+           something down early or edit it later. ---- -->
+      <h2 class="section">Trip review</h2>
+      <div class="card review-card">
+        <textarea id="review-notes" placeholder="Anything worth remembering next time?"></textarea>
+        <div class="would-return">
+          <button type="button" class="wr-btn" data-value="true">Would return</button>
+          <button type="button" class="wr-btn" data-value="false">Would not return</button>
+        </div>
+        <button type="button" id="review-save-btn" class="save-btn">Save review</button>
+        <div class="saved-note" id="review-saved-note" hidden></div>
+      </div>
     </div>
   </div>
 
@@ -266,15 +428,23 @@ const els = {
   tabBtns: document.querySelectorAll(".tab-btn"),
   viewToday: document.getElementById("view-today"),
   viewTravel: document.getElementById("view-travel"),
-  tripName: document.getElementById("trip-name"),
-  tripDest: document.getElementById("trip-dest"),
-  tripDates: document.getElementById("trip-dates"),
-  tripStatus: document.getElementById("trip-status"),
   briefCard: document.getElementById("brief-card"),
   briefDate: document.getElementById("brief-date"),
   briefText: document.getElementById("brief-text"),
   briefGenerated: document.getElementById("brief-generated"),
+  travelList: document.getElementById("travel-list"),
+  travelDetail: document.getElementById("travel-detail"),
+  travelStats: document.getElementById("travel-stats"),
+  travelUpcoming: document.getElementById("travel-upcoming"),
+  travelSomeday: document.getElementById("travel-someday"),
+  travelArchive: document.getElementById("travel-archive"),
+  detailBackBtn: document.getElementById("detail-back-btn"),
+  detailHero: document.getElementById("detail-hero"),
+  detailMain: document.getElementById("detail-main"),
+  detailAside: document.getElementById("detail-aside"),
+  bookingsSection: document.getElementById("bookings-section"),
   bookingsList: document.getElementById("bookings-list"),
+  tasksSection: document.getElementById("tasks-section"),
   tasksList: document.getElementById("tasks-list"),
   memorySection: document.getElementById("memory-section"),
   reviewNotes: document.getElementById("review-notes"),
@@ -303,6 +473,11 @@ function fmtDate(d) {
   // shown always matches the day stored.
   const [y, m, day] = d.split("-").map(Number);
   return new Date(y, m - 1, day).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+function fmtCardDate(d) {
+  if (!d) return "";
+  const [y, m, day] = d.split("-").map(Number);
+  return new Date(y, m - 1, day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 function fmtDateTime(d) {
   if (!d) return null;
@@ -376,10 +551,11 @@ function renderSyncStatus(rows) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 function formatInlineBold(s) {
-  // The AI's output uses **bold** for item titles — turn that into <strong>.
+  // The AI's output (and this file's own trip-detail copy) uses **bold** for
+  // emphasis — turn that into <strong> after escaping.
   return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
@@ -458,8 +634,307 @@ function taskCard(t) {
     </div>`;
 }
 
-// ---- Phase 4: trip memory (post-trip review + resurfacing) --------------
+// ---- Travel: multi-trip list -----------------------------------------------
+let allTrips = [];
 let currentTrip = null;
+
+function colorStyle(color) {
+  if (!color) return "";
+  return `style="--tclr:${color.c};--tclr-dark:${color.d};--tclr-soft:${color.s}"`;
+}
+
+function statusLabel(status) {
+  return { booked: "✓ Booked", requested: "◐ Requested", open: "○ Open", flag: "⚠ Flag", info: "Info" }[status] || (status || "");
+}
+
+function pillHtml(chip) {
+  const cls = { booked: "pill-booked", requested: "pill-requested", open: "pill-open", flag: "pill-flag", info: "pill-info" }[chip.type] || "pill-open";
+  return `<span class="pill ${cls}">${escapeHtml(chip.label)}</span>`;
+}
+
+function chipHtml(chip) {
+  const cls = { booked: "chip-done", requested: "chip-requested", open: "chip-open", flag: "chip-flag", info: "chip-open" }[chip.type] || "chip-open";
+  return `<span class="chip ${cls}">${escapeHtml(chip.label)}</span>`;
+}
+
+function daysUntil(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const target = new Date(y, m - 1, d);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.ceil((target - now) / 86400000));
+}
+
+function renderTripCard(trip, isNext) {
+  const d = trip.detail || {};
+  const badges = `<span class="tc-badge">${escapeHtml(d.trip_type || "Trip")}</span>` + (isNext ? `<span class="tc-badge tc-next">Next trip</span>` : "");
+  const endYear = trip.end_date ? trip.end_date.slice(0, 4) : "";
+  return `
+    <div class="trip-card2${isNext ? " next" : ""}" data-trip-id="${trip.id}" ${colorStyle(d.color)} tabindex="0" role="button">
+      <div class="tc-header">
+        <div class="tc-top-row"><span class="tc-icon">${d.icon || "✈️"}</span><div class="tc-badges">${badges}</div></div>
+        <div class="tc-dest">${escapeHtml(trip.destination || trip.name)}</div>
+        <div class="tc-dates"><span>${fmtCardDate(trip.start_date)}</span><span>– ${fmtCardDate(trip.end_date)}, ${endYear}</span></div>
+      </div>
+      <div class="tc-body">
+        ${d.people_line ? `<div class="tc-people">${escapeHtml(d.people_line)}</div>` : ""}
+        ${d.summary ? `<div class="tc-summary">${escapeHtml(d.summary)}</div>` : ""}
+        ${(d.card_chips || []).length ? `<div class="tc-chips">${d.card_chips.map(pillHtml).join("")}</div>` : ""}
+      </div>
+    </div>`;
+}
+
+function renderMiniCard(trip, faded) {
+  const d = trip.detail || {};
+  return `
+    <div class="mini-card${faded ? " faded" : ""}">
+      <span class="mini-icon">${d.icon || "🧭"}</span>
+      <div class="mini-title">${escapeHtml(trip.name)}</div>
+      ${d.description ? `<div class="mini-desc">${escapeHtml(d.description)}</div>` : ""}
+      ${d.status_label ? `<div class="mini-status">${escapeHtml(d.status_label)}</div>` : ""}
+    </div>`;
+}
+
+function renderStatsBar(upcoming, someday, archived) {
+  const next = upcoming[0];
+  els.travelStats.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Trips ahead</div><div class="stat-value">${upcoming.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Next departure</div><div class="stat-value">${next && next.start_date ? daysUntil(next.start_date) : "—"}</div><div class="stat-sub">${next ? "days · " + escapeHtml(next.destination || next.name) : "Nothing scheduled"}</div></div>
+    <div class="stat-card"><div class="stat-label">Someday ideas</div><div class="stat-value">${someday.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Archived</div><div class="stat-value">${archived.length}</div></div>`;
+}
+
+async function loadTravelList() {
+  const { data: trips, error } = await sb
+    .from("trips")
+    .select("*")
+    .order("start_date", { ascending: true, nullsFirst: false });
+
+  if (error) {
+    els.travelUpcoming.innerHTML = `<div class="empty">${error.message}</div>`;
+    return;
+  }
+
+  allTrips = trips || [];
+  const upcoming = allTrips
+    .filter((t) => (t.category || "upcoming") === "upcoming")
+    .sort((a, b) => (a.start_date || "9999-99-99").localeCompare(b.start_date || "9999-99-99"));
+  const someday = allTrips.filter((t) => t.category === "someday");
+  const archived = allTrips
+    .filter((t) => t.category === "archived")
+    .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
+
+  renderStatsBar(upcoming, someday, archived);
+
+  els.travelUpcoming.innerHTML = upcoming.length
+    ? upcoming.map((t, i) => renderTripCard(t, i === 0)).join("")
+    : `<div class="empty">No upcoming trips yet.</div>`;
+  els.travelSomeday.innerHTML = someday.length
+    ? someday.map((t) => renderMiniCard(t)).join("")
+    : `<div class="empty">Nothing parked yet.</div>`;
+  els.travelArchive.innerHTML = archived.length
+    ? archived.map((t) => renderMiniCard(t, true)).join("")
+    : `<div class="empty">No past trips logged yet.</div>`;
+}
+
+function openTripCardFromEvent(e) {
+  const card = e.target.closest("[data-trip-id]");
+  if (card) openTripDetail(card.dataset.tripId);
+}
+els.travelUpcoming.addEventListener("click", openTripCardFromEvent);
+els.travelUpcoming.addEventListener("keydown", (e) => { if (e.key === "Enter") openTripCardFromEvent(e); });
+
+function backToTravelList() {
+  els.travelDetail.hidden = true;
+  els.travelList.hidden = false;
+}
+els.detailBackBtn.addEventListener("click", backToTravelList);
+
+// ---- Travel: per-trip detail view ------------------------------------------
+
+function renderHero(trip) {
+  const d = trip.detail || {};
+  const dateRange = trip.start_date ? `${fmtDate(trip.start_date)} – ${fmtDate(trip.end_date)}` : "";
+  els.detailHero.innerHTML = `
+    <section class="hero" ${colorStyle(d.color)}>
+      ${d.eyebrow ? `<div class="eyebrow">${escapeHtml(d.eyebrow)}</div>` : ""}
+      <h1>${escapeHtml(trip.destination || trip.name)}</h1>
+      ${dateRange ? `<div class="daterange">${dateRange}</div>` : ""}
+      ${d.hero_subtitle ? `<div class="hero-subtitle">${escapeHtml(d.hero_subtitle)}</div>` : ""}
+      ${(d.hero_chips || []).length ? `<div class="chips-row">${d.hero_chips.map(chipHtml).join("")}</div>` : ""}
+    </section>`;
+}
+
+function boldParagraphs(arr) {
+  return (arr || []).map((p) => `<p>${formatInlineBold(p)}</p>`).join("");
+}
+
+function renderFlights(f) {
+  if (!f) return "";
+  const legs = (f.legs || []).map((leg) => `
+    <div class="flight-visual">
+      <div class="flight-leg-label">${escapeHtml(leg.label)}</div>
+      <div class="flight-path">${leg.stops.map((s) => s.code
+        ? `<div class="flight-stop"><div class="flight-stop-code">${escapeHtml(s.code)}</div><div class="flight-stop-time">${escapeHtml(s.time)}</div>${s.layover ? `<div class="flight-layover-chip">${escapeHtml(s.layover)}</div>` : ""}</div>`
+        : `<div class="flight-connector"><div class="flight-connector-line"><span class="flight-connector-plane">&#9992;</span></div><div class="flight-connector-num">${escapeHtml(s.flight)}</div></div>`
+      ).join("")}</div>
+    </div>`).join("");
+  return `<div class="dcard"><h2>Flights</h2>${legs}${f.note ? `<p class="field-sub">${escapeHtml(f.note)}</p>` : ""}${f.confirmation ? `<div class="flight-conf">${escapeHtml(f.confirmation)}</div>` : ""}</div>`;
+}
+
+function renderDining(dn) {
+  if (!dn) return "";
+  const rows = (dn.entries || []).map((e) => `
+    <div class="tl-row">
+      <div class="tl-date${e.date === "—" ? " tl-none" : ""}">${escapeHtml(e.date)}</div>
+      <div class="tl-body"><strong>${escapeHtml(e.title)}</strong>${e.note ? `<span class="field-sub">${escapeHtml(e.note)}</span>` : ""}</div>
+      ${pillHtml({ type: e.status, label: statusLabel(e.status) })}
+    </div>`).join("");
+  const optionsHtml = (dn.options || []).map((o) => `
+    <div class="option">
+      <h3><span>${escapeHtml(o.title)}</span></h3>
+      <p>${escapeHtml(o.body)}</p>
+    </div>`).join("");
+  return `<div class="dcard"><h2>Dining</h2><div class="timeline">${rows}</div>${dn.note ? `<h3 style="margin-top:14px">${escapeHtml(dn.note)}</h3>` : ""}${optionsHtml}</div>`;
+}
+
+function renderCharterOptions(opts, note) {
+  if (!opts || !opts.length) return "";
+  const cards = opts.map((o) => `
+    <div class="option${o.style === "reco" ? " reco" : ""}">
+      <h3><span>${escapeHtml(o.title)}${o.badge ? `<span class="reco-badge">${escapeHtml(o.badge)}</span>` : ""}</span>${o.price ? `<span class="price">${escapeHtml(o.price)}</span>` : ""}</h3>
+      <p>${escapeHtml(o.body)}</p>
+      ${(o.bullets || []).length ? `<ul>${o.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>` : ""}
+      ${o.note ? `<p><strong>${escapeHtml(o.note)}</strong></p>` : ""}
+      ${o.link_url ? `<p><a href="${escapeHtml(o.link_url)}" target="_blank" rel="noopener">${escapeHtml(o.link_text || o.link_url)} &rarr;</a></p>` : ""}
+    </div>`).join("");
+  return `<div class="dcard"><h2>Private charter options</h2>${cards}${note ? `<div class="callout">${escapeHtml(note)}</div>` : ""}</div>`;
+}
+
+function renderItinerary(days) {
+  if (!days || !days.length) return "";
+  const rows = days.map((day) => `
+    <div class="day">
+      <div class="day-date">${escapeHtml(day.date)}<span>${escapeHtml(day.label || "")}</span></div>
+      <div>
+        <h3>${escapeHtml(day.title)}${day.badge ? ` <span class="pill pill-open">${escapeHtml(day.badge)}</span>` : ""}</h3>
+        <p>${formatInlineBold(day.body)}</p>
+        ${(day.tags || []).map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join("")}
+        ${day.callout ? `<div class="callout">${escapeHtml(day.callout)}</div>` : ""}
+        ${day.note ? `<p class="field-sub">${escapeHtml(day.note)}</p>` : ""}
+      </div>
+    </div>`).join("");
+  return `<div class="dcard"><h2>Trip at a glance</h2>${rows}</div>`;
+}
+
+function renderFlags(flags) {
+  if (!flags || !flags.length) return "";
+  return flags.map((f) => `<div class="dcard"><h2>${escapeHtml(f.title)}</h2><div class="flag-box">${formatInlineBold(f.body)}</div></div>`).join("");
+}
+
+function renderStillToBook(items, title) {
+  if (!items || !items.length) return "";
+  const rows = items.map((it) => `
+    <div class="priority-row">
+      <div class="num${it.status === "flag" ? " flag" : ""}">${it.priority ?? ""}</div>
+      <div><strong>${escapeHtml(it.title)}</strong>${it.note ? `<br><span class="field-sub">${escapeHtml(it.note)}</span>` : ""}</div>
+      ${pillHtml({ type: it.status || "open", label: statusLabel(it.status || "open") })}
+    </div>`).join("");
+  return `<div class="dcard"><h2>${escapeHtml(title)}</h2>${rows}</div>`;
+}
+
+function renderBookingPriorities(items) {
+  if (!items || !items.length) return "";
+  const rows = items.map((it) => `
+    <div class="priority-row">
+      <div class="num">${it.num}</div>
+      <div><strong>${escapeHtml(it.title)}</strong>${it.note ? `<br><span class="field-sub">${escapeHtml(it.note)}</span>` : ""}</div>
+      <span class="pill pill-info">${escapeHtml(it.tag)}</span>
+    </div>`).join("");
+  return `<div class="dcard"><h2>Booking priorities</h2>${rows}</div>`;
+}
+
+function renderCostsTable(costs, defaultTitle) {
+  if (!costs) return "";
+  const rows = (costs.rows || []).map((r) => `<tr><td>${escapeHtml(r.item)}</td><td>${escapeHtml(r.amount)}${r.note ? `<span class="field-sub">${escapeHtml(r.note)}</span>` : ""}</td></tr>`).join("");
+  const totalRow = costs.total
+    ? `<tr class="total-row"><td>Total</td><td>${escapeHtml(costs.total)}</td></tr>`
+    : (costs.subtotal ? `<tr class="total-row"><td>Subtotal</td><td>${escapeHtml(costs.subtotal)}</td></tr>` : "");
+  return `<div class="dcard"><h2>${escapeHtml(costs.title || defaultTitle)}</h2><table><tr><th>Item</th><th>Amount</th></tr>${rows}${totalRow}</table>${costs.note ? `<p class="field-sub">${escapeHtml(costs.note)}</p>` : ""}</div>`;
+}
+
+function renderInsurance(ins) {
+  if (!ins) return "";
+  return `<div class="dcard"><h2>${escapeHtml(ins.title)}</h2><p>${formatInlineBold(ins.body)}</p>${ins.sub ? `<p class="field-sub">${escapeHtml(ins.sub)}</p>` : ""}</div>`;
+}
+
+function renderDecisions(list) {
+  if (!list || !list.length) return "";
+  return `<div class="dcard"><h2>Decisions locked in</h2>${list.map((d) => `<div class="decision-item"><span class="check">&#10003;</span> ${formatInlineBold(d)}</div>`).join("")}</div>`;
+}
+
+function renderDetailSections(trip) {
+  const s = (trip.detail && trip.detail.sections) || {};
+
+  const main = [
+    renderFlights(s.flights),
+    renderItinerary(s.itinerary),
+    renderDining(s.dining),
+    renderCharterOptions(s.charter_options, s.charter_note),
+    s.lodging ? `<div class="dcard"><h2>Lodging</h2>${boldParagraphs(s.lodging.paragraphs)}</div>` : "",
+    s.transport ? `<div class="dcard"><h2>Ground transport</h2>${boldParagraphs(s.transport.paragraphs)}</div>` : "",
+    renderFlags(s.flags),
+    s.footnote ? `<div class="dcard" style="text-align:center;color:var(--muted);font-size:12px">${escapeHtml(s.footnote)}</div>` : "",
+  ].filter(Boolean).join("");
+
+  const aside = [
+    renderBookingPriorities(s.booking_priorities) || renderStillToBook(s.still_to_book, "Still to book"),
+    renderCostsTable(s.costs_committed, "Committed so far"),
+    renderCostsTable(s.costs_budget, "Working budget"),
+    renderInsurance(s.insurance),
+    renderDecisions(s.decisions),
+  ].filter(Boolean).join("");
+
+  els.detailMain.innerHTML = main || `<div class="dcard"><p class="empty">No detail recorded yet for this trip.</p></div>`;
+  els.detailAside.innerHTML = aside;
+}
+
+async function openTripDetail(tripId) {
+  const trip = allTrips.find((t) => t.id === tripId);
+  if (!trip) return;
+  currentTrip = trip;
+
+  els.travelList.hidden = true;
+  els.travelDetail.hidden = false;
+  window.scrollTo(0, 0);
+
+  renderHero(trip);
+  renderDetailSections(trip);
+
+  const [
+    { data: bookings, error: bErr },
+    { data: tasks, error: tErr },
+    { data: ownReviews, error: ownReviewErr },
+    { data: pastReviews, error: pastReviewErr },
+  ] = await Promise.all([
+    sb.from("bookings").select("*").eq("trip_id", trip.id).order("start_at", { ascending: true, nullsFirst: false }),
+    sb.from("trip_tasks").select("*").eq("trip_id", trip.id).order("due_date", { ascending: true }),
+    sb.from("trip_reviews").select("*").eq("trip_id", trip.id).order("created_at", { ascending: false }).limit(1),
+    sb.from("trip_reviews").select("*").ilike("destination", trip.destination || trip.name).neq("trip_id", trip.id).order("created_at", { ascending: false }).limit(1),
+  ]);
+
+  const hasBookings = !bErr && bookings && bookings.length > 0;
+  const hasTasks = !tErr && tasks && tasks.length > 0;
+  els.bookingsSection.hidden = !hasBookings;
+  els.tasksSection.hidden = !hasTasks;
+  els.bookingsList.innerHTML = hasBookings ? bookings.map(bookingCard).join("") : "";
+  els.tasksList.innerHTML = hasTasks ? tasks.map(taskCard).join("") : "";
+
+  renderReviewForm(!ownReviewErr && ownReviews && ownReviews.length ? ownReviews[0] : null);
+  renderMemoryCard(!pastReviewErr && pastReviews && pastReviews.length ? pastReviews[0] : null);
+}
+
+// ---- Phase 4: trip memory (post-trip review + resurfacing) --------------
 let currentReviewId = null;
 let selectedWouldReturn = null;
 
@@ -507,7 +982,7 @@ function renderMemoryCard(memory) {
   els.memorySection.innerHTML = `
     <div class="card memory-card">
       <div class="memory-label">You've been here before</div>
-      <div class="card-title">${escapeHtml(currentTrip.destination)} — reviewed ${when}</div>
+      <div class="card-title">${escapeHtml(currentTrip.destination || currentTrip.name)} — reviewed ${when}</div>
       ${memory.review_notes ? `<div class="card-meta">${escapeHtml(memory.review_notes)}</div>` : ""}
       ${returnLine ? `<div class="card-when">${returnLine}</div>` : ""}
     </div>`;
@@ -522,7 +997,7 @@ els.reviewSaveBtn.addEventListener("click", async () => {
   const payload = {
     owner_id: user.id,
     trip_id: currentTrip.id,
-    destination: currentTrip.destination,
+    destination: currentTrip.destination || currentTrip.name,
     review_notes: els.reviewNotes.value.trim() || null,
     would_return: selectedWouldReturn,
   };
@@ -544,41 +1019,13 @@ els.reviewSaveBtn.addEventListener("click", async () => {
   els.reviewSavedNote.hidden = false;
 });
 
-async function loadTrip() {
-  // V1 scope is one trip; load the most recently created one that isn't archived.
-  const { data: trips, error: tripErr } = await sb
-    .from("trips")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (tripErr || !trips || trips.length === 0) {
-    els.tripName.textContent = "No trip found";
-    els.bookingsList.innerHTML = `<div class="empty">${tripErr ? tripErr.message : "No trips in the database yet."}</div>`;
-    return;
-  }
-
-  const trip = trips[0];
-  currentTrip = trip;
-  els.tripName.textContent = trip.name;
-  els.tripDest.textContent = trip.destination;
-  els.tripDates.textContent = `${fmtDate(trip.start_date)} – ${fmtDate(trip.end_date)}`;
-  els.tripStatus.textContent = trip.status;
-
+async function loadBriefAndSync() {
   const [
-    { data: bookings, error: bErr },
-    { data: tasks, error: tErr },
     { data: briefs, error: brErr },
     { data: syncRows, error: syncErr },
-    { data: ownReviews, error: ownReviewErr },
-    { data: pastReviews, error: pastReviewErr },
   ] = await Promise.all([
-    sb.from("bookings").select("*").eq("trip_id", trip.id).order("start_at", { ascending: true, nullsFirst: false }),
-    sb.from("trip_tasks").select("*").eq("trip_id", trip.id).order("due_date", { ascending: true }),
     sb.from("daily_briefs").select("brief_text, generated_at").order("generated_at", { ascending: false }).limit(1),
     sb.from("sync_log").select("job_name, run_at, status").order("run_at", { ascending: false }).limit(20),
-    sb.from("trip_reviews").select("*").eq("trip_id", trip.id).order("created_at", { ascending: false }).limit(1),
-    sb.from("trip_reviews").select("*").ilike("destination", trip.destination).neq("trip_id", trip.id).order("created_at", { ascending: false }).limit(1),
   ]);
 
   // Daily brief is best-effort — if the table isn't there yet or the query
@@ -589,28 +1036,13 @@ async function loadTrip() {
   // block the rest of the page from rendering.
   renderSyncStatus(syncErr ? null : syncRows);
 
-  renderReviewForm(!ownReviewErr && ownReviews && ownReviews.length ? ownReviews[0] : null);
-  renderMemoryCard(!pastReviewErr && pastReviews && pastReviews.length ? pastReviews[0] : null);
-
-  els.bookingsList.innerHTML = bErr
-    ? `<div class="empty">${bErr.message}</div>`
-    : bookings.length
-      ? bookings.map(bookingCard).join("")
-      : `<div class="empty">No bookings yet.</div>`;
-
-  els.tasksList.innerHTML = tErr
-    ? `<div class="empty">${tErr.message}</div>`
-    : tasks.length
-      ? tasks.map(taskCard).join("")
-      : `<div class="empty">Nothing open.</div>`;
-
   els.lastLoaded.textContent = "Loaded " + new Date().toLocaleTimeString();
 }
 
 async function showApp() {
   els.signin.hidden = true;
   els.app.hidden = false;
-  await loadTrip();
+  await Promise.all([loadTravelList(), loadBriefAndSync()]);
 }
 
 function showSignin(message) {
