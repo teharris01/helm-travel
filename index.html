@@ -204,6 +204,23 @@
   .mini-desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .mini-status { font-size: 10.5px; color: var(--accent); font-weight: 700; margin-top: 7px; text-transform: uppercase; letter-spacing: .04em; }
 
+  /* ---- current trip (full width) + past trips (ADR-9) ---- */
+  .trip-current { display: grid; grid-template-columns: 1fr; }
+  .trip-card2.current { box-shadow: 0 0 0 2px var(--tclr, var(--accent)); }
+  .tc-badge.tc-current { background: #fff; color: var(--tclr-dark, #22345c); }
+  .past-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 640px) { .past-list { grid-template-columns: 1fr 1fr; } }
+  .past-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 13px 15px; }
+  .past-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; cursor: pointer; background: none; border: none; padding: 0; width: 100%; text-align: left; font-family: inherit; color: inherit; }
+  .past-title { font-weight: 700; font-size: 14px; }
+  .past-dates { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .past-chevron { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .past-line { font-size: 12.5px; margin-top: 8px; line-height: 1.4; }
+  .past-line b { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 1px; }
+  .past-review { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--panel-border); font-size: 13px; line-height: 1.45; }
+  .past-open { margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--accent); background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
+  .past-open:hover { text-decoration: underline; }
+
   /* ---- detail view ---- */
   .detail-back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 700; font-size: 13.5px; cursor: pointer; margin-bottom: 14px; background: none; border: none; padding: 0; font-family: inherit; }
   .detail-back:hover { text-decoration: underline; }
@@ -338,6 +355,11 @@
     <div id="travel-list">
       <div class="stats-bar" id="travel-stats"></div>
 
+      <div class="list-section" id="travel-current-wrap" hidden>
+        <div class="list-section-title">Happening now</div>
+        <div class="trip-current" id="travel-current"></div>
+      </div>
+
       <div class="list-section">
         <div class="list-section-title">Upcoming trips · tap one for the full detail</div>
         <div class="trip-grid2" id="travel-upcoming"></div>
@@ -349,8 +371,8 @@
       </div>
 
       <div class="list-section">
-        <div class="list-section-title">Trip archive</div>
-        <div class="mini-grid" id="travel-archive"></div>
+        <div class="list-section-title">Past trips · tap to expand</div>
+        <div class="past-list" id="travel-archive"></div>
       </div>
     </div>
 
@@ -435,6 +457,8 @@ const els = {
   travelList: document.getElementById("travel-list"),
   travelDetail: document.getElementById("travel-detail"),
   travelStats: document.getElementById("travel-stats"),
+  travelCurrent: document.getElementById("travel-current"),
+  travelCurrentWrap: document.getElementById("travel-current-wrap"),
   travelUpcoming: document.getElementById("travel-upcoming"),
   travelSomeday: document.getElementById("travel-someday"),
   travelArchive: document.getElementById("travel-archive"),
@@ -676,12 +700,16 @@ function daysUntil(dateStr) {
   return Math.max(0, Math.ceil((target - now) / 86400000));
 }
 
-function renderTripCard(trip, isNext) {
+function renderTripCard(trip, kind) {
   const d = trip.detail || {};
-  const badges = `<span class="tc-badge">${escapeHtml(d.trip_type || "Trip")}</span>` + (isNext ? `<span class="tc-badge tc-next">Next trip</span>` : "");
+  const isNext = kind === "next";
+  const isCurrent = kind === "current";
+  const badges = `<span class="tc-badge">${escapeHtml(d.trip_type || "Trip")}</span>`
+    + (isCurrent ? `<span class="tc-badge tc-current">In progress</span>` : "")
+    + (isNext ? `<span class="tc-badge tc-next">Next trip</span>` : "");
   const endYear = trip.end_date ? trip.end_date.slice(0, 4) : "";
   return `
-    <div class="trip-card2${isNext ? " next" : ""}" data-trip-id="${trip.id}" ${colorStyle(d.color)} tabindex="0" role="button">
+    <div class="trip-card2${isNext ? " next" : ""}${isCurrent ? " current" : ""}" data-trip-id="${trip.id}" ${colorStyle(d.color)} tabindex="0" role="button">
       <div class="tc-header">
         <div class="tc-top-row"><span class="tc-icon">${d.icon || "✈️"}</span><div class="tc-badges">${badges}</div></div>
         <div class="tc-dest">${escapeHtml(trip.destination || trip.name)}</div>
@@ -706,13 +734,62 @@ function renderMiniCard(trip, faded) {
     </div>`;
 }
 
-function renderStatsBar(upcoming, someday, archived) {
-  const next = upcoming[0];
+// ---- ADR-9: trip status is derived from dates on every load ----------------
+// category === 'someday' is the only manual override (undated ideas).
+// 'archived' is still honored as past, for trips hand-archived before ADR-9.
+function todayLocalStr() {
+  const n = new Date();
+  const p = (x) => String(x).padStart(2, "0");
+  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+}
+
+function tripStatus(t, today) {
+  if (t.category === "someday") return "someday";
+  if (t.category === "archived") return "past";
+  const start = t.start_date;
+  const end = t.end_date || t.start_date;
+  if (!start) return "future"; // undated, not marked someday: keep visible, sorted last
+  if (end < today) return "past";
+  if (start <= today) return "current";
+  return "future";
+}
+
+const tripReviewCache = {}; // trip_id -> review row | null
+
+function plainText(s) {
+  return String(s || "").replace(/\*\*/g, "");
+}
+
+function renderPastCard(trip) {
+  const d = trip.detail || {};
+  const s = (d.sections) || {};
+  const endYear = trip.end_date ? trip.end_date.slice(0, 4) : "";
+  const lodging = s.lodging && (s.lodging.paragraphs || []).length ? plainText(s.lodging.paragraphs[0]) : "";
+  const dining = ((s.dining && s.dining.entries) || [])
+    .filter((e) => e.title)
+    .map((e) => e.title);
+  return `
+    <div class="past-card" data-past-id="${trip.id}">
+      <button type="button" class="past-head" aria-expanded="false">
+        <span>
+          <span class="past-title">${d.icon || "🧭"} ${escapeHtml(trip.destination || trip.name)}</span>
+          <span class="past-dates" style="display:block">${fmtCardDate(trip.start_date)} – ${fmtCardDate(trip.end_date)}${endYear ? ", " + endYear : ""}</span>
+        </span>
+        <span class="past-chevron">&#9662;</span>
+      </button>
+      ${lodging ? `<div class="past-line"><b>Hotel</b>${escapeHtml(lodging)}</div>` : ""}
+      ${dining.length ? `<div class="past-line"><b>Restaurants</b>${dining.map(escapeHtml).join(" · ")}</div>` : ""}
+      <div class="past-review" hidden></div>
+    </div>`;
+}
+
+function renderStatsBar(ahead, current, someday, past) {
+  const next = ahead[0];
   els.travelStats.innerHTML = `
-    <div class="stat-card"><div class="stat-label">Trips ahead</div><div class="stat-value">${upcoming.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Next departure</div><div class="stat-value">${next && next.start_date ? daysUntil(next.start_date) : "—"}</div><div class="stat-sub">${next ? "days · " + escapeHtml(next.destination || next.name) : "Nothing scheduled"}</div></div>
+    <div class="stat-card"><div class="stat-label">Trips ahead</div><div class="stat-value">${ahead.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Next departure</div><div class="stat-value">${next && next.start_date ? daysUntil(next.start_date) : "—"}</div><div class="stat-sub">${next ? "days · " + escapeHtml(next.destination || next.name) : (current.length ? "A trip is underway" : "Nothing scheduled")}</div></div>
     <div class="stat-card"><div class="stat-label">Someday ideas</div><div class="stat-value">${someday.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Archived</div><div class="stat-value">${archived.length}</div></div>`;
+    <div class="stat-card"><div class="stat-label">Past trips</div><div class="stat-value">${past.length}</div></div>`;
 }
 
 async function loadTravelList() {
@@ -727,25 +804,40 @@ async function loadTravelList() {
   }
 
   allTrips = trips || [];
-  const upcoming = allTrips
-    .filter((t) => (t.category || "upcoming") === "upcoming")
-    .sort((a, b) => (a.start_date || "9999-99-99").localeCompare(b.start_date || "9999-99-99"));
-  const someday = allTrips.filter((t) => t.category === "someday");
-  const archived = allTrips
-    .filter((t) => t.category === "archived")
-    .sort((a, b) => (b.end_date || "").localeCompare(a.end_date || ""));
+  const today = todayLocalStr();
+  const byStart = (a, b) => (a.start_date || "9999-99-99").localeCompare(b.start_date || "9999-99-99");
 
-  renderStatsBar(upcoming, someday, archived);
+  const current = allTrips.filter((t) => tripStatus(t, today) === "current").sort(byStart);
+  const ahead = allTrips.filter((t) => tripStatus(t, today) === "future").sort(byStart);
+  const someday = allTrips.filter((t) => tripStatus(t, today) === "someday");
+  const past = allTrips
+    .filter((t) => tripStatus(t, today) === "past")
+    .sort((a, b) => (b.end_date || b.start_date || "").localeCompare(a.end_date || a.start_date || ""));
 
-  els.travelUpcoming.innerHTML = upcoming.length
-    ? upcoming.map((t, i) => renderTripCard(t, i === 0)).join("")
+  renderStatsBar(ahead, current, someday, past);
+
+  els.travelCurrentWrap.hidden = current.length === 0;
+  els.travelCurrent.innerHTML = current.map((t) => renderTripCard(t, "current")).join("");
+
+  els.travelUpcoming.innerHTML = ahead.length
+    ? ahead.map((t, i) => renderTripCard(t, i === 0 ? "next" : "")).join("")
     : `<div class="empty">No upcoming trips yet.</div>`;
   els.travelSomeday.innerHTML = someday.length
     ? someday.map((t) => renderMiniCard(t)).join("")
     : `<div class="empty">Nothing parked yet.</div>`;
-  els.travelArchive.innerHTML = archived.length
-    ? archived.map((t) => renderMiniCard(t, true)).join("")
+  els.travelArchive.innerHTML = past.length
+    ? past.map(renderPastCard).join("")
     : `<div class="empty">No past trips logged yet.</div>`;
+
+  // Saved reviews for past trips, fetched once so expanding a card is instant.
+  if (past.length) {
+    const ids = past.map((t) => t.id);
+    const { data: reviews, error: rErr } = await sb.from("trip_reviews").select("*").in("trip_id", ids).order("created_at", { ascending: false });
+    if (!rErr) {
+      ids.forEach((id) => { tripReviewCache[id] = null; });
+      (reviews || []).forEach((r) => { if (!tripReviewCache[r.trip_id]) tripReviewCache[r.trip_id] = r; });
+    }
+  }
 }
 
 function openTripCardFromEvent(e) {
@@ -754,6 +846,32 @@ function openTripCardFromEvent(e) {
 }
 els.travelUpcoming.addEventListener("click", openTripCardFromEvent);
 els.travelUpcoming.addEventListener("keydown", (e) => { if (e.key === "Enter") openTripCardFromEvent(e); });
+els.travelCurrent.addEventListener("click", openTripCardFromEvent);
+els.travelCurrent.addEventListener("keydown", (e) => { if (e.key === "Enter") openTripCardFromEvent(e); });
+
+// Past trips: tap the header to expand/collapse the saved review; "Full trip detail" opens the normal detail view.
+els.travelArchive.addEventListener("click", (e) => {
+  const open = e.target.closest(".past-open");
+  const card = e.target.closest("[data-past-id]");
+  if (!card) return;
+  if (open) { openTripDetail(card.dataset.pastId); return; }
+  if (!e.target.closest(".past-head")) return;
+
+  const box = card.querySelector(".past-review");
+  const head = card.querySelector(".past-head");
+  const willOpen = box.hidden;
+  if (willOpen) {
+    const r = tripReviewCache[card.dataset.pastId];
+    const returnLine = r && r.would_return === true ? "You said you'd go back."
+      : r && r.would_return === false ? "You said you wouldn't go back." : "";
+    box.innerHTML = (r
+      ? `${r.review_notes ? `<div>${escapeHtml(r.review_notes)}</div>` : ""}${returnLine ? `<div class="field-sub" style="margin-top:6px">${returnLine}</div>` : ""}`
+      : `<div class="field-sub">No review saved yet.</div>`)
+      + `<button type="button" class="past-open">Full trip detail &rarr;</button>`;
+  }
+  box.hidden = !willOpen;
+  head.setAttribute("aria-expanded", String(willOpen));
+});
 
 function backToTravelList() {
   els.travelDetail.hidden = true;
