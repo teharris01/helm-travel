@@ -231,6 +231,10 @@
   .din-group { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 22px 0 8px; }
   .din-card { background: var(--panel); border: 1px solid var(--panel-border); border-left: 6px solid hsl(var(--cz-h, 210) 58% 55%); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; }
   .din-card.try { border-left-style: dashed; }
+  .din-search { position: relative; margin: 4px 0 8px; }
+  .din-search input { width: 100%; box-sizing: border-box; padding: 11px 38px 11px 14px; border-radius: 10px; border: 1px solid var(--panel-border); background: var(--panel); color: inherit; font-size: 16px; font-family: inherit; }
+  .din-search button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; padding: 4px 9px; cursor: pointer; }
+  .din-search-note { font-size: 12.5px; color: var(--muted); margin: 0 0 8px; }
   .din-contact a { color: var(--accent, #2b6cb0); text-decoration: none; font-weight: 600; }
   .seg-wrap { flex-wrap: wrap; }
   .seg-wrap button { flex: 1 1 22%; min-width: 74px; }
@@ -558,6 +562,12 @@
       <div class="saved-note" id="din-saved-note" hidden></div>
     </div>
 
+    <div class="din-search" id="din-searchbar">
+      <input id="din-search" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="Search: Italian, Cary, gluten-free, special, Resy…" aria-label="Search restaurants" />
+      <button type="button" id="din-search-clear" hidden aria-label="Clear search">&times;</button>
+    </div>
+    <div class="din-search-note" id="din-search-note" hidden></div>
     <div class="din-filters" id="din-filters">
       <button type="button" class="din-filter active" data-filter="all">All</button>
       <button type="button" class="din-filter" data-filter="everyday">Everyday</button>
@@ -1377,6 +1387,7 @@ function cuisineInfo(text) {
 
 let allRestaurants = [];
 let diningCuisine = null;
+let diningQuery = "";
 let diningAvoidOpen = false;
 let diningFilter = "all";
 let editingRestaurantId = null;
@@ -1603,6 +1614,43 @@ dinEls.cfilters.addEventListener("click", (e) => {
   renderDining();
 });
 
+// ---- Search: every word must match something about the restaurant (AND). ----
+const RES_LABEL = { opentable: "opentable reserve reservation online", resy: "resy reserve reservation online", website: "reserve reservation online website", phone: "call phone reserve reservation" };
+function diningHaystack(r) {
+  const parts = [
+    r.name, r.cuisine, r.address, r.place, r.standout_dish, r.notes, r.recommended_by, r.gf_note, r.df_note,
+    r.occasion === "special" ? "special occasion fancy date night" : r.occasion === "everyday" ? "everyday casual regular" : "",
+    r.tried === false ? "want to try recommended new" : "",
+    r.verdict === "like" ? "like liked favorite favourite good" : r.verdict === "dislike" ? "dislike disliked avoid" : r.verdict === "neutral" ? "neutral ok" : "",
+    r.would_return === "yes" ? "would return" : r.would_return === "no" ? "would not return avoid" : "",
+    r.scope === "trip" ? "trip travel" : "local home",
+    RES_LABEL[r.reservation_type] || "",
+    r.phone ? "phone" : "",
+    r.website ? "website" : "",
+  ];
+  // Words that mean "handles our dietary needs" only match when we have a note for them.
+  if (r.gf_note) parts.push("gluten free gluten-free gf celiac");
+  if (r.df_note) parts.push("dairy free dairy-free df lactose");
+  return parts.filter(Boolean).join(" ").toLowerCase();
+}
+function matchesQuery(r, q) {
+  const terms = q.toLowerCase().split(/[\s,]+/).filter((t) => t && !/^(and|or|the|a|in|near|nearby|for|to|restaurants?|places?)$/.test(t));
+  if (!terms.length) return true;
+  const hay = diningHaystack(r);
+  return terms.every((t) => hay.includes(t));
+}
+const dinSearchEl = document.getElementById("din-search");
+const dinSearchClear = document.getElementById("din-search-clear");
+const dinSearchNote = document.getElementById("din-search-note");
+dinSearchEl.addEventListener("input", () => {
+  diningQuery = dinSearchEl.value;
+  dinSearchClear.hidden = !diningQuery;
+  renderDining();
+});
+dinSearchClear.addEventListener("click", () => {
+  dinSearchEl.value = ""; diningQuery = ""; dinSearchClear.hidden = true; renderDining(); dinSearchEl.focus();
+});
+
 function renderDining() {
   const baseRows = allRestaurants.filter((r) => {
     if (diningFilter === "all") return true;
@@ -1611,9 +1659,13 @@ function renderDining() {
     return r.tried !== false && r.scope === "local" && r.occasion === diningFilter;
   });
   renderCuisineFilters(baseRows);
-  const rows = diningCuisine ? baseRows.filter((r) => { const c = cuisineInfo(r.cuisine); return c && c.key === diningCuisine; }) : baseRows;
+  const byCuisine = diningCuisine ? baseRows.filter((r) => { const c = cuisineInfo(r.cuisine); return c && c.key === diningCuisine; }) : baseRows;
+  const q = diningQuery.trim();
+  const rows = q ? byCuisine.filter((r) => matchesQuery(r, q)) : byCuisine;
+  dinSearchNote.hidden = !q;
+  if (q) dinSearchNote.textContent = rows.length === 1 ? "1 match" : rows.length + " matches";
   if (!rows.length) {
-    dinEls.list.innerHTML = `<div class="empty">${allRestaurants.length ? "Nothing matches that filter." : "No restaurants yet — add the first one."}</div>`;
+    dinEls.list.innerHTML = `<div class="empty">${allRestaurants.length ? (q ? "Nothing matches “" + escapeHtml(q) + "”." : "Nothing matches that filter.") : "No restaurants yet — add the first one."}</div>`;
     return;
   }
   // Auto-filing: anywhere we disliked or would not return drops to a collapsed list at the bottom.
