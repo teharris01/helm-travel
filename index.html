@@ -229,7 +229,27 @@
   .din-filter { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--panel-border); background: var(--panel); color: var(--muted); font-size: 12.5px; cursor: pointer; font-family: inherit; }
   .din-filter.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .din-group { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 22px 0 8px; }
-  .din-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; }
+  .din-card { background: var(--panel); border: 1px solid var(--panel-border); border-left: 6px solid hsl(var(--cz-h, 210) 58% 55%); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; }
+  .din-card.try { border-left-style: dashed; }
+  .din-avoid { margin-top: 26px; border-top: 1px solid var(--panel-border); padding-top: 4px; }
+  .din-avoid > summary { cursor: pointer; list-style: none; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 14px 0 8px; }
+  .din-avoid > summary::-webkit-details-marker { display: none; }
+  .din-avoid > summary::before { content: "\25B8  "; }
+  .din-avoid[open] > summary::before { content: "\25BE  "; }
+  .din-avoid .din-card { opacity: .62; border-left-color: hsl(0 0% 60%); }
+  .din-avoid .din-card:hover { opacity: 1; }
+  .din-cz { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 10px 2px 7px; border-radius: 999px;
+    background: hsl(var(--cz-h, 210) 80% 93%); color: hsl(var(--cz-h, 210) 60% 24%); border: 1px solid hsl(var(--cz-h, 210) 55% 80%); }
+  .din-cz-row { margin-top: 5px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .din-occ { font-size: 12px; color: var(--muted); }
+  .din-cfilters { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 6px; }
+  .din-cfilter { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px 4px 8px; border-radius: 999px; cursor: pointer; font-family: inherit; font-size: 12.5px; font-weight: 600;
+    background: hsl(var(--cz-h, 210) 80% 95%); color: hsl(var(--cz-h, 210) 60% 26%); border: 1px solid hsl(var(--cz-h, 210) 55% 82%); }
+  .din-cfilter.active { background: hsl(var(--cz-h, 210) 58% 40%); color: #fff; border-color: hsl(var(--cz-h, 210) 58% 40%); }
+  .din-verdict.like { background: #e6f4ea; }
+  .din-verdict.neutral { color: #8a5a00; border-color: #8a5a00; background: #fbf1dc; }
+  .din-verdict.dislike { background: #fdeceb; }
+  .din-verdict.try { background: #e3edf7; }
   .din-name { font-weight: 700; font-size: 15px; }
   .din-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
   .din-verdict { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--panel-border); color: var(--muted); margin-right: 6px; }
@@ -526,6 +546,7 @@
       <button type="button" class="din-filter" data-filter="trip">From trips</button>
       <button type="button" class="din-filter" data-filter="try">Want to try</button>
     </div>
+    <div class="din-cfilters" id="din-cfilters"></div>
     <div id="din-list"></div>
   </div>
 
@@ -1300,7 +1321,44 @@ async function loadBriefAndSync() {
 // Same shape as trip reviews: saving writes to Supabase at once (status
 // "captured"); a Claude session later files it into the Second Brain and marks
 // it "filed". Editing a filed row flips it back to captured so it gets re-filed.
+// Cuisine -> color + icon. Matches on keywords in whatever was typed (the earliest
+// keyword in the text wins, so "Thai / Sushi" reads as Thai). Anything unrecognized
+// still gets a stable color derived from its text, so it never looks unstyled.
+const CUISINES = [
+  { re: /indian|curry|tandoor/, h: 28, e: "🍛" },
+  { re: /sushi|japanese|ramen|izakaya|hibachi/, h: 350, e: "🍣" },
+  { re: /thai/, h: 145, e: "🍜" },
+  { re: /vietnam|pho\b|banh/, h: 168, e: "🍲" },
+  { re: /chinese|dim sum|szechuan|sichuan|cantonese/, h: 6, e: "🥟" },
+  { re: /korean|bulgogi|bibimbap/, h: 322, e: "🥢" },
+  { re: /pizza/, h: 16, e: "🍕" },
+  { re: /italian|pasta|trattoria/, h: 98, e: "🍝" },
+  { re: /french|bistro|brasserie/, h: 258, e: "🥐" },
+  { re: /mexican|taco|tex-mex|cantina/, h: 46, e: "🌮" },
+  { re: /seafood|oyster|\bfish\b|crab|lobster|raw bar/, h: 197, e: "🦞" },
+  { re: /bbq|barbecue|smokehouse|\bbarbeque/, h: 12, e: "🍖" },
+  { re: /mediterranean|greek|lebanese|middle eastern|turkish|croatian|falafel/, h: 176, e: "🫒" },
+  { re: /american|burger|steak|southern|diner|grill|contemporary/, h: 214, e: "🍔" },
+  { re: /breakfast|brunch|bakery|cafe|coffee|donut/, h: 52, e: "🥞" },
+  { re: /pub|\bbar\b|brewery|tavern|cocktail|wine/, h: 285, e: "🍺" },
+];
+function cuisineInfo(text) {
+  const t = String(text || "").toLowerCase().trim();
+  if (!t) return null;
+  let best = null, bestIdx = Infinity;
+  CUISINES.forEach((c) => {
+    const m = t.search(c.re);
+    if (m >= 0 && m < bestIdx) { best = c; bestIdx = m; }
+  });
+  if (best) return { h: best.h, e: best.e, key: best.h + ":" + best.e };
+  let hash = 0;
+  for (let i = 0; i < t.length; i++) hash = (hash * 31 + t.charCodeAt(i)) >>> 0;
+  return { h: hash % 360, e: "🍽️", key: "x:" + t };
+}
+
 let allRestaurants = [];
+let diningCuisine = null;
+let diningAvoidOpen = false;
 let diningFilter = "all";
 let editingRestaurantId = null;
 const dinState = { tried: "yes", occasion: null, verdict: null, would_return: null };
@@ -1327,6 +1385,7 @@ const dinEls = {
   savedNote: document.getElementById("din-saved-note"),
   filters: document.getElementById("din-filters"),
   list: document.getElementById("din-list"),
+  cfilters: document.getElementById("din-cfilters"),
 };
 const WOULD_RETURN_LABEL = { yes: "Would return", maybe: "Maybe return", no: "Would not return" };
 const VERDICT_LABEL = { like: "Like", neutral: "Neutral", dislike: "Dislike" };
@@ -1417,10 +1476,12 @@ dinEls.filters.addEventListener("click", (e) => {
 
 function renderDiningCard(r) {
   if (r.tried === false) {
-    const subT = [r.cuisine, r.occasion ? OCCASION_LABEL[r.occasion] : null, r.address, r.scope === "trip" ? r.place : null].filter(Boolean).map(escapeHtml).join(" · ");
+    const czT = cuisineInfo(r.cuisine);
+    const subT = [r.occasion ? OCCASION_LABEL[r.occasion] : null, r.address, r.scope === "trip" ? r.place : null].filter(Boolean).map(escapeHtml).join(" · ");
     return `
-    <div class="din-card" data-rid="${r.id}">
+    <div class="din-card try" data-rid="${r.id}" style="--cz-h:${czT ? czT.h : 210}">
       <div class="din-name">${escapeHtml(r.name)}</div>
+      ${czT ? `<div class="din-cz-row"><span class="din-cz">${czT.e} ${escapeHtml(r.cuisine)}</span></div>` : ""}
       ${subT ? `<div class="din-sub">${subT}</div>` : ""}
       <div style="margin-top:7px"><span class="din-verdict try">Want to try</span></div>
       ${r.recommended_by ? `<div class="din-line"><b>Recommended by</b>${escapeHtml(r.recommended_by)}</div>` : ""}
@@ -1429,13 +1490,15 @@ function renderDiningCard(r) {
       <button type="button" class="din-edit">Edit</button><button type="button" class="din-edit din-went">We went &mdash; add our verdict</button>
     </div>`;
   }
-  const sub = [r.cuisine, r.occasion ? OCCASION_LABEL[r.occasion] : null, r.address].filter(Boolean).map(escapeHtml).join(" · ");
+  const cz = cuisineInfo(r.cuisine);
+  const sub = [r.occasion ? OCCASION_LABEL[r.occasion] : null, r.address].filter(Boolean).map(escapeHtml).join(" · ");
   const chips = (r.verdict ? `<span class="din-verdict ${r.verdict}">${VERDICT_LABEL[r.verdict]}</span>` : "")
     + (r.would_return ? `<span class="field-sub">${WOULD_RETURN_LABEL[r.would_return]}</span>` : "");
   const line = (label, v) => (v ? `<div class="din-line"><b>${label}</b>${escapeHtml(v)}</div>` : "");
   return `
-    <div class="din-card" data-rid="${r.id}">
+    <div class="din-card" data-rid="${r.id}" style="--cz-h:${cz ? cz.h : 210}">
       <div class="din-name">${escapeHtml(r.name)}</div>
+      ${cz ? `<div class="din-cz-row"><span class="din-cz">${cz.e} ${escapeHtml(r.cuisine)}</span></div>` : ""}
       ${sub ? `<div class="din-sub">${sub}</div>` : ""}
       ${chips ? `<div style="margin-top:7px">${chips}</div>` : ""}
       ${line("Standout dish", r.standout_dish)}
@@ -1448,31 +1511,64 @@ function renderDiningCard(r) {
     </div>`;
 }
 
+function renderCuisineFilters(baseRows) {
+  const seen = new Map();
+  baseRows.forEach((r) => {
+    const c = cuisineInfo(r.cuisine);
+    if (c && !seen.has(c.key)) seen.set(c.key, { c, label: r.cuisine, n: 0 });
+    if (c) seen.get(c.key).n++;
+  });
+  if (diningCuisine && !seen.has(diningCuisine)) diningCuisine = null;
+  if (seen.size < 2) { dinEls.cfilters.innerHTML = ""; return; }
+  dinEls.cfilters.innerHTML = [...seen.entries()].map(([key, v]) =>
+    `<button type="button" class="din-cfilter${diningCuisine === key ? " active" : ""}" data-ckey="${escapeHtml(key)}" style="--cz-h:${v.c.h}">${v.c.e} ${escapeHtml(v.label)} <span style="opacity:.7">${v.n}</span></button>`
+  ).join("");
+}
+dinEls.cfilters.addEventListener("click", (e) => {
+  const b = e.target.closest(".din-cfilter");
+  if (!b) return;
+  diningCuisine = diningCuisine === b.dataset.ckey ? null : b.dataset.ckey; // tap again to clear
+  renderDining();
+});
+
 function renderDining() {
-  const rows = allRestaurants.filter((r) => {
+  const baseRows = allRestaurants.filter((r) => {
     if (diningFilter === "all") return true;
     if (diningFilter === "try") return r.tried === false;
     if (diningFilter === "trip") return r.scope === "trip" && r.tried !== false;
     return r.tried !== false && r.scope === "local" && r.occasion === diningFilter;
   });
+  renderCuisineFilters(baseRows);
+  const rows = diningCuisine ? baseRows.filter((r) => { const c = cuisineInfo(r.cuisine); return c && c.key === diningCuisine; }) : baseRows;
   if (!rows.length) {
     dinEls.list.innerHTML = `<div class="empty">${allRestaurants.length ? "Nothing matches that filter." : "No restaurants yet — add the first one."}</div>`;
     return;
   }
+  // Auto-filing: anywhere we disliked or would not return drops to a collapsed list at the bottom.
+  const isAvoid = (r) => r.tried !== false && (r.verdict === "dislike" || r.would_return === "no");
+  const mainRows = rows.filter((r) => !isAvoid(r));
+  const avoidRows = rows.filter(isAvoid);
   const groupOf = (r) => (r.tried === false ? "Want to try" : r.scope === "trip" ? "From trips" : r.place || "Local");
   const groups = {};
-  rows.forEach((r) => { (groups[groupOf(r)] = groups[groupOf(r)] || []).push(r); });
+  mainRows.forEach((r) => { (groups[groupOf(r)] = groups[groupOf(r)] || []).push(r); });
   const order = ["Raleigh / Research Triangle", "Ocean Isle Beach"];
   const keys = Object.keys(groups).sort((a, b) => {
     const rank = (k) => (order.indexOf(k) >= 0 ? order.indexOf(k) : k === "Want to try" ? 10 : k === "From trips" ? 99 : 50);
     return rank(a) - rank(b) || a.localeCompare(b);
   });
   const occRank = { everyday: 0, special: 1 };
-  dinEls.list.innerHTML = keys.map((k) => {
+  const mainHtml = keys.map((k) => {
     const items = groups[k].slice().sort((a, b) =>
       (occRank[a.occasion] ?? 2) - (occRank[b.occasion] ?? 2) || a.name.localeCompare(b.name));
     return `<div class="din-group">${escapeHtml(k)}</div>` + items.map(renderDiningCard).join("");
   }).join("");
+  const avoidHtml = avoidRows.length
+    ? `<details class="din-avoid" id="din-avoid"${diningAvoidOpen ? " open" : ""}><summary>Would not return / disliked &middot; ${avoidRows.length}</summary>`
+      + avoidRows.slice().sort((a, b) => a.name.localeCompare(b.name)).map(renderDiningCard).join("") + `</details>`
+    : "";
+  dinEls.list.innerHTML = mainHtml + avoidHtml;
+  const av = document.getElementById("din-avoid");
+  if (av) av.addEventListener("toggle", () => { diningAvoidOpen = av.open; });
 }
 
 dinEls.list.addEventListener("click", (e) => {
