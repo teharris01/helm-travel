@@ -220,10 +220,36 @@
   .past-review { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--panel-border); font-size: 13px; line-height: 1.45; }
   .past-open { margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--accent); background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
   .past-open:hover { text-decoration: underline; }
+
+  /* ---- Dining (ADR-10: second capture domain) ---- */
+  .din-btn { padding: 9px 14px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .din-btn.ghost { background: var(--panel); color: var(--muted); border: 1px solid var(--panel-border); }
+  .din-btn:disabled { opacity: 0.5; }
+  .din-filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+  .din-filter { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--panel-border); background: var(--panel); color: var(--muted); font-size: 12.5px; cursor: pointer; font-family: inherit; }
+  .din-filter.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .din-group { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 22px 0 8px; }
+  .din-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; }
+  .din-name { font-weight: 700; font-size: 15px; }
+  .din-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .din-verdict { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--panel-border); color: var(--muted); margin-right: 6px; }
+  .din-verdict.like { color: #1f6b3d; border-color: #1f6b3d; }
+  .din-verdict.dislike { color: #b3261e; border-color: #b3261e; }
+  .din-line { font-size: 13px; margin-top: 8px; line-height: 1.4; }
+  .din-line b { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 1px; }
+  .din-edit { margin-top: 8px; font-size: 12.5px; font-weight: 700; color: var(--accent); background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
+  .din-form label { display: block; font-size: 12.5px; color: var(--muted); margin: 12px 0 5px; }
+  .din-form input[type=text], .din-form select, .din-form textarea { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg); color: var(--text); font-size: 15px; font-family: inherit; }
+  .din-form textarea { min-height: 70px; resize: vertical; }
+  .seg { display: flex; gap: 6px; }
+  .seg button { flex: 1; padding: 8px 6px; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--panel); color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit; }
+  .seg button.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .din-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .din-verdict.try { color: var(--accent); border-color: var(--accent); }
+  .din-went { margin-left: 14px; }
   .rec-status { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--panel-border); color: var(--muted); }
   .rec-status.filed { color: var(--accent); border-color: var(--accent); }
   .rec-status.failed { color: #b3261e; border-color: #b3261e; }
-  .rec-link { font-size: 12.5px; margin-left: 8px; color: var(--accent); font-weight: 700; }
 
   /* ---- detail view ---- */
   .detail-back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 700; font-size: 13.5px; cursor: pointer; margin-bottom: 14px; background: none; border: none; padding: 0; font-family: inherit; }
@@ -336,6 +362,7 @@
     <nav class="tabs">
       <button class="tab-btn active" data-view="today" type="button">Today</button>
       <button class="tab-btn" data-view="travel" type="button">Travel</button>
+      <button class="tab-btn" data-view="dining" type="button">Dining</button>
     </nav>
   </div>
 
@@ -417,8 +444,89 @@
         </div>
         <button type="button" id="review-save-btn" class="save-btn">Save review</button>
         <div class="saved-note" id="review-saved-note" hidden></div>
+        <div id="review-status"></div>
       </div>
+      <button type="button" class="din-btn" id="detail-add-restaurant" style="margin-top:14px">+ Add a restaurant from this trip</button>
     </div>
+  </div>
+
+  <!-- ---- Dining view (ADR-10): local restaurants + restaurants from trips.
+       Captured here, filed into the Second Brain by a Claude session. ---- -->
+  <div class="view" id="view-dining" hidden>
+    <div style="display:flex; gap:8px; flex-wrap:wrap">
+      <button type="button" class="din-btn" id="din-add-btn">+ Add a restaurant</button>
+      <button type="button" class="din-btn ghost" id="din-want-btn">+ Someone recommended one</button>
+    </div>
+
+    <div class="card din-form" id="din-form" hidden style="margin-top:14px">
+      <h2 class="section" style="margin-top:0" id="din-form-title">New restaurant</h2>
+      <label>Have you been?</label>
+      <div class="seg" data-field="tried">
+        <button type="button" data-value="yes">Been there</button>
+        <button type="button" data-value="no">Want to try</button>
+      </div>
+      <label for="din-name">Name</label>
+      <input id="din-name" type="text" autocomplete="off" />
+      <label for="din-place">Where</label>
+      <select id="din-place">
+        <option value="raleigh">Raleigh / Research Triangle</option>
+        <option value="oib">Ocean Isle Beach</option>
+        <option value="trip">From a trip</option>
+      </select>
+      <div id="din-trip-wrap" hidden>
+        <label for="din-trip">Which trip?</label>
+        <select id="din-trip"></select>
+      </div>
+      <label for="din-address">Address or neighborhood</label>
+      <input id="din-address" type="text" autocomplete="off" />
+      <label for="din-cuisine">Cuisine</label>
+      <input id="din-cuisine" type="text" autocomplete="off" />
+      <label>Occasion</label>
+      <div class="seg" data-field="occasion">
+        <button type="button" data-value="everyday">Everyday</button>
+        <button type="button" data-value="special">Special occasion</button>
+      </div>
+      <div id="din-try-fields" hidden>
+        <label for="din-recby">Recommended by</label>
+        <input id="din-recby" type="text" autocomplete="off" />
+      </div>
+      <div id="din-visited-fields">
+      <label>Verdict</label>
+      <div class="seg" data-field="verdict">
+        <button type="button" data-value="like">Like</button>
+        <button type="button" data-value="neutral">Neutral</button>
+        <button type="button" data-value="dislike">Dislike</button>
+      </div>
+      <label>Would we return?</label>
+      <div class="seg" data-field="would_return">
+        <button type="button" data-value="yes">Yes</button>
+        <button type="button" data-value="maybe">Maybe</button>
+        <button type="button" data-value="no">No</button>
+      </div>
+      <label for="din-dish">Standout dish</label>
+      <input id="din-dish" type="text" autocomplete="off" />
+      <label for="din-gf">Gluten-free: how well they handle it</label>
+      <input id="din-gf" type="text" autocomplete="off" />
+      <label for="din-df">Dairy-free: how well they handle it</label>
+      <input id="din-df" type="text" autocomplete="off" />
+      </div>
+      <label for="din-notes" id="din-notes-label">Anything to remember next time</label>
+      <textarea id="din-notes"></textarea>
+      <div class="din-actions">
+        <button type="button" class="din-btn" id="din-save-btn">Save</button>
+        <button type="button" class="din-btn ghost" id="din-cancel-btn">Cancel</button>
+      </div>
+      <div class="saved-note" id="din-saved-note" hidden></div>
+    </div>
+
+    <div class="din-filters" id="din-filters">
+      <button type="button" class="din-filter active" data-filter="all">All</button>
+      <button type="button" class="din-filter" data-filter="everyday">Everyday</button>
+      <button type="button" class="din-filter" data-filter="special">Special occasion</button>
+      <button type="button" class="din-filter" data-filter="trip">From trips</button>
+      <button type="button" class="din-filter" data-filter="try">Want to try</button>
+    </div>
+    <div id="din-list"></div>
   </div>
 
   <div class="sync-status" id="sync-status" hidden></div>
@@ -454,6 +562,7 @@ const els = {
   tabBtns: document.querySelectorAll(".tab-btn"),
   viewToday: document.getElementById("view-today"),
   viewTravel: document.getElementById("view-travel"),
+  viewDining: document.getElementById("view-dining"),
   briefCard: document.getElementById("brief-card"),
   briefDate: document.getElementById("brief-date"),
   briefText: document.getElementById("brief-text"),
@@ -478,18 +587,20 @@ const els = {
   reviewNotes: document.getElementById("review-notes"),
   reviewSaveBtn: document.getElementById("review-save-btn"),
   reviewSavedNote: document.getElementById("review-saved-note"),
+  reviewStatus: document.getElementById("review-status"),
   syncStatus: document.getElementById("sync-status"),
   lastLoaded: document.getElementById("last-loaded"),
   signoutBtn: document.getElementById("signout-btn"),
 };
 
+function setView(view) {
+  els.tabBtns.forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+  els.viewToday.hidden = view !== "today";
+  els.viewTravel.hidden = view !== "travel";
+  els.viewDining.hidden = view !== "dining";
+}
 els.tabBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    els.tabBtns.forEach((b) => b.classList.toggle("active", b === btn));
-    const view = btn.dataset.view;
-    els.viewToday.hidden = view !== "today";
-    els.viewTravel.hidden = view !== "travel";
-  });
+  btn.addEventListener("click", () => setView(btn.dataset.view));
 });
 
 function fmtDate(d) {
@@ -770,8 +881,7 @@ function recordStatusHtml(r) {
   if (!r) return "";
   const st = ["captured", "filed", "failed"].includes(r.status) ? r.status : "captured";
   const label = st === "filed" ? "Filed in Second Brain" : st === "failed" ? "Filing failed" : "Captured · not yet filed";
-  const url = r.drive_doc_url && /^https:\/\/drive\.google\.com\//.test(r.drive_doc_url) ? r.drive_doc_url : "";
-  return `<div style="margin-top:8px"><span class="rec-status ${st}">${label}</span>${url ? `<a class="rec-link" href="${escapeHtml(url).replace(/"/g, "&quot;")}" target="_blank" rel="noopener">Open document &rarr;</a>` : ""}</div>`;
+  return `<div style="margin-top:8px"><span class="rec-status ${st}">${label}</span></div>`;
 }
 
 function renderPastCard(trip) {
@@ -1101,10 +1211,12 @@ function renderReviewForm(existing) {
   });
 
   if (existing) {
-    els.reviewSavedNote.textContent = `Saved ${fmtDateTime(existing.created_at)} — edit and save again to update.` + (existing.status === "filed" ? " Filed in Second Brain." : " Not yet filed in Second Brain.");
+    els.reviewSavedNote.textContent = `Saved ${fmtDateTime(existing.created_at)} — edit and save again to update.`;
     els.reviewSavedNote.hidden = false;
+    els.reviewStatus.innerHTML = recordStatusHtml(existing);
   } else {
     els.reviewSavedNote.hidden = true;
+    els.reviewStatus.innerHTML = "";
   }
 }
 
@@ -1159,7 +1271,8 @@ els.reviewSaveBtn.addEventListener("click", async () => {
   }
 
   currentReviewId = data.id;
-  els.reviewSavedNote.textContent = `Saved ${fmtDateTime(data.created_at)} — edit and save again to update. Not yet filed in Second Brain.`;
+  els.reviewSavedNote.textContent = `Saved ${fmtDateTime(data.created_at)} — edit and save again to update.`;
+  els.reviewStatus.innerHTML = recordStatusHtml(data);
   els.reviewSavedNote.hidden = false;
 });
 
@@ -1183,10 +1296,261 @@ async function loadBriefAndSync() {
   els.lastLoaded.textContent = "Loaded " + new Date().toLocaleTimeString();
 }
 
+// ---- Dining (ADR-10, second capture domain) -------------------------------
+// Same shape as trip reviews: saving writes to Supabase at once (status
+// "captured"); a Claude session later files it into the Second Brain and marks
+// it "filed". Editing a filed row flips it back to captured so it gets re-filed.
+let allRestaurants = [];
+let diningFilter = "all";
+let editingRestaurantId = null;
+const dinState = { tried: "yes", occasion: null, verdict: null, would_return: null };
+const dinEls = {
+  addBtn: document.getElementById("din-add-btn"),
+  form: document.getElementById("din-form"),
+  formTitle: document.getElementById("din-form-title"),
+  name: document.getElementById("din-name"),
+  place: document.getElementById("din-place"),
+  tripWrap: document.getElementById("din-trip-wrap"),
+  trip: document.getElementById("din-trip"),
+  address: document.getElementById("din-address"),
+  cuisine: document.getElementById("din-cuisine"),
+  dish: document.getElementById("din-dish"),
+  gf: document.getElementById("din-gf"),
+  df: document.getElementById("din-df"),
+  notes: document.getElementById("din-notes"),
+  notesLabel: document.getElementById("din-notes-label"),
+  recBy: document.getElementById("din-recby"),
+  tryFields: document.getElementById("din-try-fields"),
+  visitedFields: document.getElementById("din-visited-fields"),
+  saveBtn: document.getElementById("din-save-btn"),
+  cancelBtn: document.getElementById("din-cancel-btn"),
+  savedNote: document.getElementById("din-saved-note"),
+  filters: document.getElementById("din-filters"),
+  list: document.getElementById("din-list"),
+};
+const WOULD_RETURN_LABEL = { yes: "Would return", maybe: "Maybe return", no: "Would not return" };
+const VERDICT_LABEL = { like: "Like", neutral: "Neutral", dislike: "Dislike" };
+const OCCASION_LABEL = { everyday: "Everyday", special: "Special occasion" };
+
+function applyTriedMode() {
+  const want = dinState.tried === "no";
+  dinEls.tryFields.hidden = !want;
+  dinEls.visitedFields.hidden = want;
+  dinEls.notesLabel.textContent = want ? "Description: what it is, why it was recommended" : "Anything to remember next time";
+}
+function setSeg(field, value) {
+  dinState[field] = field === "tried" ? (value || "yes") : (value || null);
+  if (field === "tried") applyTriedMode();
+  document.querySelectorAll(`.seg[data-field="${field}"] button`).forEach((b) => {
+    b.classList.toggle("selected", b.dataset.value === dinState[field]);
+  });
+}
+document.querySelectorAll(".seg[data-field]").forEach((seg) => {
+  seg.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const field = seg.dataset.field;
+    if (field === "tried") { setSeg(field, btn.dataset.value); return; } // always one of the two
+    setSeg(field, dinState[field] === btn.dataset.value ? null : btn.dataset.value); // tap again to clear
+  });
+});
+
+function fillTripOptions(selectedId) {
+  const trips = (allTrips || []).slice().sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
+  dinEls.trip.innerHTML = trips
+    .map((t) => {
+      const yr = t.start_date ? " (" + t.start_date.slice(0, 4) + ")" : "";
+      return `<option value="${t.id}">${escapeHtml((t.destination || t.name) + yr)}</option>`;
+    })
+    .join("");
+  if (selectedId) dinEls.trip.value = selectedId;
+}
+dinEls.place.addEventListener("change", () => {
+  dinEls.tripWrap.hidden = dinEls.place.value !== "trip";
+});
+
+function openDiningForm(row, presetTripId, opts) {
+  editingRestaurantId = row ? row.id : null;
+  dinEls.formTitle.textContent = row ? "Edit restaurant" : "New restaurant";
+  dinEls.name.value = row ? row.name || "" : "";
+  const isTrip = row ? row.scope === "trip" : !!presetTripId;
+  fillTripOptions(row ? row.trip_id : presetTripId);
+  dinEls.place.value = isTrip ? "trip" : (row && row.place === "Ocean Isle Beach" ? "oib" : "raleigh");
+  dinEls.tripWrap.hidden = !isTrip;
+  dinEls.address.value = row ? row.address || "" : "";
+  dinEls.cuisine.value = row ? row.cuisine || "" : "";
+  dinEls.dish.value = row ? row.standout_dish || "" : "";
+  dinEls.gf.value = row ? row.gf_note || "" : "";
+  dinEls.df.value = row ? row.df_note || "" : "";
+  dinEls.notes.value = row ? row.notes || "" : "";
+  dinEls.recBy.value = row ? row.recommended_by || "" : "";
+  // "We went" on a want-to-try card flips it to a full entry; its description stays in Notes to edit.
+  setSeg("tried", opts && opts.markTried ? "yes" : (row && row.tried === false ? "no" : "yes"));
+  setSeg("occasion", row ? row.occasion : null);
+  setSeg("verdict", row ? row.verdict : null);
+  setSeg("would_return", row ? row.would_return : null);
+  dinEls.savedNote.hidden = true;
+  dinEls.form.hidden = false;
+  dinEls.name.focus();
+}
+function closeDiningForm() {
+  dinEls.form.hidden = true;
+  editingRestaurantId = null;
+}
+dinEls.addBtn.addEventListener("click", () => openDiningForm(null, null));
+document.getElementById("din-want-btn").addEventListener("click", () => { openDiningForm(null, null); setSeg("tried", "no"); });
+dinEls.cancelBtn.addEventListener("click", closeDiningForm);
+
+document.getElementById("detail-add-restaurant").addEventListener("click", () => {
+  if (!currentTrip) return;
+  setView("dining");
+  openDiningForm(null, currentTrip.id);
+});
+
+dinEls.filters.addEventListener("click", (e) => {
+  const btn = e.target.closest(".din-filter");
+  if (!btn) return;
+  diningFilter = btn.dataset.filter;
+  dinEls.filters.querySelectorAll(".din-filter").forEach((b) => b.classList.toggle("active", b === btn));
+  renderDining();
+});
+
+function renderDiningCard(r) {
+  if (r.tried === false) {
+    const subT = [r.cuisine, r.occasion ? OCCASION_LABEL[r.occasion] : null, r.address, r.scope === "trip" ? r.place : null].filter(Boolean).map(escapeHtml).join(" · ");
+    return `
+    <div class="din-card" data-rid="${r.id}">
+      <div class="din-name">${escapeHtml(r.name)}</div>
+      ${subT ? `<div class="din-sub">${subT}</div>` : ""}
+      <div style="margin-top:7px"><span class="din-verdict try">Want to try</span></div>
+      ${r.recommended_by ? `<div class="din-line"><b>Recommended by</b>${escapeHtml(r.recommended_by)}</div>` : ""}
+      ${r.notes ? `<div class="din-line"><b>Description</b>${escapeHtml(r.notes)}</div>` : ""}
+      ${recordStatusHtml(r)}
+      <button type="button" class="din-edit">Edit</button><button type="button" class="din-edit din-went">We went &mdash; add our verdict</button>
+    </div>`;
+  }
+  const sub = [r.cuisine, r.occasion ? OCCASION_LABEL[r.occasion] : null, r.address].filter(Boolean).map(escapeHtml).join(" · ");
+  const chips = (r.verdict ? `<span class="din-verdict ${r.verdict}">${VERDICT_LABEL[r.verdict]}</span>` : "")
+    + (r.would_return ? `<span class="field-sub">${WOULD_RETURN_LABEL[r.would_return]}</span>` : "");
+  const line = (label, v) => (v ? `<div class="din-line"><b>${label}</b>${escapeHtml(v)}</div>` : "");
+  return `
+    <div class="din-card" data-rid="${r.id}">
+      <div class="din-name">${escapeHtml(r.name)}</div>
+      ${sub ? `<div class="din-sub">${sub}</div>` : ""}
+      ${chips ? `<div style="margin-top:7px">${chips}</div>` : ""}
+      ${line("Standout dish", r.standout_dish)}
+      ${line("Gluten-free", r.gf_note)}
+      ${line("Dairy-free", r.df_note)}
+      ${line("Notes", r.notes)}
+      ${r.recommended_by ? line("Recommended by", r.recommended_by) : ""}
+      ${recordStatusHtml(r)}
+      <button type="button" class="din-edit">Edit</button>
+    </div>`;
+}
+
+function renderDining() {
+  const rows = allRestaurants.filter((r) => {
+    if (diningFilter === "all") return true;
+    if (diningFilter === "try") return r.tried === false;
+    if (diningFilter === "trip") return r.scope === "trip" && r.tried !== false;
+    return r.tried !== false && r.scope === "local" && r.occasion === diningFilter;
+  });
+  if (!rows.length) {
+    dinEls.list.innerHTML = `<div class="empty">${allRestaurants.length ? "Nothing matches that filter." : "No restaurants yet — add the first one."}</div>`;
+    return;
+  }
+  const groupOf = (r) => (r.tried === false ? "Want to try" : r.scope === "trip" ? "From trips" : r.place || "Local");
+  const groups = {};
+  rows.forEach((r) => { (groups[groupOf(r)] = groups[groupOf(r)] || []).push(r); });
+  const order = ["Raleigh / Research Triangle", "Ocean Isle Beach"];
+  const keys = Object.keys(groups).sort((a, b) => {
+    const rank = (k) => (order.indexOf(k) >= 0 ? order.indexOf(k) : k === "Want to try" ? 10 : k === "From trips" ? 99 : 50);
+    return rank(a) - rank(b) || a.localeCompare(b);
+  });
+  const occRank = { everyday: 0, special: 1 };
+  dinEls.list.innerHTML = keys.map((k) => {
+    const items = groups[k].slice().sort((a, b) =>
+      (occRank[a.occasion] ?? 2) - (occRank[b.occasion] ?? 2) || a.name.localeCompare(b.name));
+    return `<div class="din-group">${escapeHtml(k)}</div>` + items.map(renderDiningCard).join("");
+  }).join("");
+}
+
+dinEls.list.addEventListener("click", (e) => {
+  const btn = e.target.closest(".din-edit");
+  if (!btn) return;
+  const card = e.target.closest("[data-rid]");
+  const row = allRestaurants.find((r) => r.id === card.dataset.rid);
+  if (row) { openDiningForm(row, null, { markTried: btn.classList.contains("din-went") }); dinEls.form.scrollIntoView({ behavior: "smooth", block: "start" }); }
+});
+
+async function loadDining() {
+  const { data, error } = await sb.from("restaurants").select("*").order("name", { ascending: true });
+  if (error) {
+    // Best-effort, like the brief: a missing table must never break the other tabs.
+    dinEls.list.innerHTML = `<div class="empty">Dining isn't available yet: ${escapeHtml(error.message)}</div>`;
+    dinEls.addBtn.hidden = true;
+    return;
+  }
+  dinEls.addBtn.hidden = false;
+  allRestaurants = data || [];
+  renderDining();
+}
+
+dinEls.saveBtn.addEventListener("click", async () => {
+  const name = dinEls.name.value.trim();
+  if (!name) {
+    dinEls.savedNote.textContent = "Add a name first.";
+    dinEls.savedNote.hidden = false;
+    return;
+  }
+  dinEls.saveBtn.disabled = true;
+  dinEls.savedNote.hidden = true;
+
+  const { data: { user } } = await sb.auth.getUser();
+  const isTrip = dinEls.place.value === "trip";
+  const tripRow = isTrip ? (allTrips || []).find((t) => t.id === dinEls.trip.value) : null;
+  const want = dinState.tried === "no";
+  const payload = {
+    owner_id: user.id,
+    name,
+    tried: !want,
+    recommended_by: dinEls.recBy.value.trim() || null,
+    scope: isTrip ? "trip" : "local",
+    place: isTrip ? (tripRow ? (tripRow.destination || tripRow.name) : null)
+      : (dinEls.place.value === "oib" ? "Ocean Isle Beach" : "Raleigh / Research Triangle"),
+    trip_id: isTrip && tripRow ? tripRow.id : null,
+    address: dinEls.address.value.trim() || null,
+    cuisine: dinEls.cuisine.value.trim() || null,
+    occasion: dinState.occasion,
+    verdict: want ? null : dinState.verdict,
+    would_return: want ? null : dinState.would_return,
+    standout_dish: want ? null : dinEls.dish.value.trim() || null,
+    gf_note: want ? null : dinEls.gf.value.trim() || null,
+    df_note: want ? null : dinEls.df.value.trim() || null,
+    notes: dinEls.notes.value.trim() || null,
+    status: "captured", // new or edited: the Second Brain copy needs (re)filing
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = editingRestaurantId
+    ? await sb.from("restaurants").update(payload).eq("id", editingRestaurantId)
+    : await sb.from("restaurants").insert(payload);
+
+  dinEls.saveBtn.disabled = false;
+  if (error) {
+    dinEls.savedNote.textContent = "Could not save: " + error.message;
+    dinEls.savedNote.hidden = false;
+    return;
+  }
+  closeDiningForm();
+  await loadDining();
+});
+
 async function showApp() {
   els.signin.hidden = true;
   els.app.hidden = false;
   await Promise.all([loadTravelList(), loadBriefAndSync()]);
+  await loadDining(); // after trips load, so the trip picker has its list
 }
 
 function showSignin(message) {
