@@ -231,6 +231,12 @@
   .din-group { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 22px 0 8px; }
   .din-card { background: var(--panel); border: 1px solid var(--panel-border); border-left: 6px solid hsl(var(--cz-h, 210) 58% 55%); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; }
   .din-card.try { border-left-style: dashed; }
+  .din-contact a { color: var(--accent, #2b6cb0); text-decoration: none; font-weight: 600; }
+  .seg-wrap { flex-wrap: wrap; }
+  .seg-wrap button { flex: 1 1 22%; min-width: 74px; }
+  .din-reserve { display: inline-block; margin-top: 8px; padding: 8px 14px; border-radius: 9px; background: var(--accent, #2b6cb0); color: #fff !important; font-size: 13.5px; font-weight: 600; text-decoration: none; }
+  .din-reserve.off { background: transparent; color: var(--muted) !important; border: 1px dashed var(--panel-border); font-weight: 500; font-size: 12.5px; }
+  .din-pending { color: var(--muted); font-size: 12.5px; font-style: italic; }
   .din-avoid { margin-top: 26px; border-top: 1px solid var(--panel-border); padding-top: 4px; }
   .din-avoid > summary { cursor: pointer; list-style: none; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 14px 0 8px; }
   .din-avoid > summary::-webkit-details-marker { display: none; }
@@ -499,6 +505,19 @@
       </div>
       <label for="din-address">Address or neighborhood</label>
       <input id="din-address" type="text" autocomplete="off" />
+      <label for="din-phone">Phone <span class="field-sub">(optional &mdash; Claude fills this in if you leave it blank)</span></label>
+      <input id="din-phone" type="tel" autocomplete="off" />
+      <label for="din-website">Website <span class="field-sub">(optional)</span></label>
+      <input id="din-website" type="url" autocomplete="off" />
+      <label>How do we reserve? <span class="field-sub">(tap again to clear; Claude fills this in if you leave it blank)</span></label>
+      <div class="seg seg-wrap" data-field="reservation">
+        <button type="button" data-value="opentable">OpenTable</button>
+        <button type="button" data-value="resy">Resy</button>
+        <button type="button" data-value="website">Their website</button>
+        <button type="button" data-value="phone">Call</button>
+      </div>
+      <label for="din-resurl">Reservation link <span class="field-sub">(optional &mdash; the page where you book)</span></label>
+      <input id="din-resurl" type="url" autocomplete="off" />
       <label for="din-cuisine">Cuisine</label>
       <input id="din-cuisine" type="text" autocomplete="off" />
       <label>Occasion</label>
@@ -1361,7 +1380,7 @@ let diningCuisine = null;
 let diningAvoidOpen = false;
 let diningFilter = "all";
 let editingRestaurantId = null;
-const dinState = { tried: "yes", occasion: null, verdict: null, would_return: null };
+const dinState = { tried: "yes", occasion: null, verdict: null, would_return: null, reservation: null };
 const dinEls = {
   addBtn: document.getElementById("din-add-btn"),
   form: document.getElementById("din-form"),
@@ -1371,6 +1390,9 @@ const dinEls = {
   tripWrap: document.getElementById("din-trip-wrap"),
   trip: document.getElementById("din-trip"),
   address: document.getElementById("din-address"),
+  phone: document.getElementById("din-phone"),
+  website: document.getElementById("din-website"),
+  resurl: document.getElementById("din-resurl"),
   cuisine: document.getElementById("din-cuisine"),
   dish: document.getElementById("din-dish"),
   gf: document.getElementById("din-gf"),
@@ -1437,6 +1459,9 @@ function openDiningForm(row, presetTripId, opts) {
   dinEls.place.value = isTrip ? "trip" : (row && row.place === "Ocean Isle Beach" ? "oib" : "raleigh");
   dinEls.tripWrap.hidden = !isTrip;
   dinEls.address.value = row ? row.address || "" : "";
+  dinEls.phone.value = row ? row.phone || "" : "";
+  dinEls.website.value = row ? row.website || "" : "";
+  dinEls.resurl.value = row ? row.reservation_url || "" : "";
   dinEls.cuisine.value = row ? row.cuisine || "" : "";
   dinEls.dish.value = row ? row.standout_dish || "" : "";
   dinEls.gf.value = row ? row.gf_note || "" : "";
@@ -1448,6 +1473,7 @@ function openDiningForm(row, presetTripId, opts) {
   setSeg("occasion", row ? row.occasion : null);
   setSeg("verdict", row ? row.verdict : null);
   setSeg("would_return", row ? row.would_return : null);
+  setSeg("reservation", row ? row.reservation_type : null);
   dinEls.savedNote.hidden = true;
   dinEls.form.hidden = false;
   dinEls.name.focus();
@@ -1474,6 +1500,50 @@ dinEls.filters.addEventListener("click", (e) => {
   renderDining();
 });
 
+function httpUrl(u) {
+  if (!u) return null;
+  const t = u.trim();
+  if (/^https?:\/\//i.test(t)) return t;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(t)) return null; // no javascript:, data:, etc.
+  return "https://" + t;
+}
+function reserveHtml(r) {
+  const t = r.reservation_type;
+  if (!t) return "";
+  const phoneDigits = r.phone ? r.phone.replace(/[^\d+]/g, "") : "";
+  const link = (href, label) => `<a class="din-reserve" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  if (t === "opentable") {
+    const href = httpUrl(r.reservation_url) || "https://www.opentable.com/s?term=" + encodeURIComponent(r.name + (r.place && r.scope !== "trip" ? " " + r.place.split(" /")[0] : ""));
+    return link(href, "Reserve on OpenTable" + (r.reservation_url ? "" : " (search)"));
+  }
+  if (t === "resy") {
+    const href = httpUrl(r.reservation_url);
+    return href ? link(href, "Reserve on Resy") : `<span class="din-reserve off">Reserves on Resy &middot; link will be filled in</span>`;
+  }
+  if (t === "website") {
+    const href = httpUrl(r.reservation_url) || httpUrl(r.website);
+    return href ? link(href, "Reserve on their website") : `<span class="din-reserve off">Reserves on their website &middot; link will be filled in</span>`;
+  }
+  if (t === "phone") {
+    return r.phone
+      ? `<a class="din-reserve" href="tel:${escapeHtml(phoneDigits)}">Call to reserve &middot; ${escapeHtml(r.phone)}</a>`
+      : `<span class="din-reserve off">Call to reserve &middot; number will be filled in</span>`;
+  }
+  return "";
+}
+
+function contactHtml(r) {
+  const safeUrl = httpUrl(r.website);
+  const phoneDigits = r.phone ? r.phone.replace(/[^\d+]/g, "") : "";
+  const bits = [];
+  if (r.phone) bits.push(`<a href="tel:${escapeHtml(phoneDigits)}">${escapeHtml(r.phone)}</a>`);
+  if (safeUrl) bits.push(`<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer">Website</a>`);
+  const missing = !r.address || !r.phone || !r.reservation_type;
+  return (bits.length ? `<div class="din-line din-contact">${bits.join(" &middot; ")}</div>` : "")
+    + reserveHtml(r)
+    + (missing && r.status === "captured" ? `<div class="din-line din-pending">Address, phone and reservation info will be filled in automatically</div>` : "");
+}
+
 function renderDiningCard(r) {
   if (r.tried === false) {
     const czT = cuisineInfo(r.cuisine);
@@ -1486,6 +1556,7 @@ function renderDiningCard(r) {
       <div style="margin-top:7px"><span class="din-verdict try">Want to try</span></div>
       ${r.recommended_by ? `<div class="din-line"><b>Recommended by</b>${escapeHtml(r.recommended_by)}</div>` : ""}
       ${r.notes ? `<div class="din-line"><b>Description</b>${escapeHtml(r.notes)}</div>` : ""}
+      ${contactHtml(r)}
       ${recordStatusHtml(r)}
       <button type="button" class="din-edit">Edit</button><button type="button" class="din-edit din-went">We went &mdash; add our verdict</button>
     </div>`;
@@ -1506,6 +1577,7 @@ function renderDiningCard(r) {
       ${line("Dairy-free", r.df_note)}
       ${line("Notes", r.notes)}
       ${r.recommended_by ? line("Recommended by", r.recommended_by) : ""}
+      ${contactHtml(r)}
       ${recordStatusHtml(r)}
       <button type="button" class="din-edit">Edit</button>
     </div>`;
@@ -1616,6 +1688,10 @@ dinEls.saveBtn.addEventListener("click", async () => {
       : (dinEls.place.value === "oib" ? "Ocean Isle Beach" : "Raleigh / Research Triangle"),
     trip_id: isTrip && tripRow ? tripRow.id : null,
     address: dinEls.address.value.trim() || null,
+    phone: dinEls.phone.value.trim() || null,
+    website: dinEls.website.value.trim() || null,
+    reservation_type: dinState.reservation || null,
+    reservation_url: dinEls.resurl.value.trim() || null,
     cuisine: dinEls.cuisine.value.trim() || null,
     occasion: dinState.occasion,
     verdict: want ? null : dinState.verdict,
