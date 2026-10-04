@@ -220,6 +220,10 @@
   .past-review { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--panel-border); font-size: 13px; line-height: 1.45; }
   .past-open { margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--accent); background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; }
   .past-open:hover { text-decoration: underline; }
+  .rec-status { display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--panel-border); color: var(--muted); }
+  .rec-status.filed { color: var(--accent); border-color: var(--accent); }
+  .rec-status.failed { color: #b3261e; border-color: #b3261e; }
+  .rec-link { font-size: 12.5px; margin-left: 8px; color: var(--accent); font-weight: 700; }
 
   /* ---- detail view ---- */
   .detail-back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 700; font-size: 13.5px; cursor: pointer; margin-bottom: 14px; background: none; border: none; padding: 0; font-family: inherit; }
@@ -760,6 +764,16 @@ function plainText(s) {
   return String(s || "").replace(/\*\*/g, "");
 }
 
+// ADR-10: every captured record shows where it stands — captured (saved in
+// Helm only), filed (also written into the Second Brain), or failed.
+function recordStatusHtml(r) {
+  if (!r) return "";
+  const st = ["captured", "filed", "failed"].includes(r.status) ? r.status : "captured";
+  const label = st === "filed" ? "Filed in Second Brain" : st === "failed" ? "Filing failed" : "Captured · not yet filed";
+  const url = r.drive_doc_url && /^https:\/\/drive\.google\.com\//.test(r.drive_doc_url) ? r.drive_doc_url : "";
+  return `<div style="margin-top:8px"><span class="rec-status ${st}">${label}</span>${url ? `<a class="rec-link" href="${escapeHtml(url).replace(/"/g, "&quot;")}" target="_blank" rel="noopener">Open document &rarr;</a>` : ""}</div>`;
+}
+
 function renderPastCard(trip) {
   const d = trip.detail || {};
   const s = (d.sections) || {};
@@ -865,7 +879,7 @@ els.travelArchive.addEventListener("click", (e) => {
     const returnLine = r && r.would_return === true ? "You said you'd go back."
       : r && r.would_return === false ? "You said you wouldn't go back." : "";
     box.innerHTML = (r
-      ? `${r.review_notes ? `<div>${escapeHtml(r.review_notes)}</div>` : ""}${returnLine ? `<div class="field-sub" style="margin-top:6px">${returnLine}</div>` : ""}`
+      ? `${r.review_notes ? `<div>${escapeHtml(r.review_notes)}</div>` : ""}${returnLine ? `<div class="field-sub" style="margin-top:6px">${returnLine}</div>` : ""}${recordStatusHtml(r)}`
       : `<div class="field-sub">No review saved yet.</div>`)
       + `<button type="button" class="past-open">Full trip detail &rarr;</button>`;
   }
@@ -1087,7 +1101,7 @@ function renderReviewForm(existing) {
   });
 
   if (existing) {
-    els.reviewSavedNote.textContent = `Saved ${fmtDateTime(existing.created_at)} — edit and save again to update.`;
+    els.reviewSavedNote.textContent = `Saved ${fmtDateTime(existing.created_at)} — edit and save again to update.` + (existing.status === "filed" ? " Filed in Second Brain." : " Not yet filed in Second Brain.");
     els.reviewSavedNote.hidden = false;
   } else {
     els.reviewSavedNote.hidden = true;
@@ -1129,6 +1143,7 @@ els.reviewSaveBtn.addEventListener("click", async () => {
     destination: currentTrip.destination || currentTrip.name,
     review_notes: els.reviewNotes.value.trim() || null,
     would_return: selectedWouldReturn,
+    status: "captured", // an edit means the Second Brain copy is out of date — a Claude session re-files it
   };
 
   const { data, error } = currentReviewId
@@ -1144,7 +1159,7 @@ els.reviewSaveBtn.addEventListener("click", async () => {
   }
 
   currentReviewId = data.id;
-  els.reviewSavedNote.textContent = `Saved ${fmtDateTime(data.created_at)} — edit and save again to update.`;
+  els.reviewSavedNote.textContent = `Saved ${fmtDateTime(data.created_at)} — edit and save again to update. Not yet filed in Second Brain.`;
   els.reviewSavedNote.hidden = false;
 });
 
