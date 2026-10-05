@@ -812,7 +812,7 @@ function renderWeekGrid(g) {
   h += g.days.map((d) => `<div class="wg-ecol" style="height:${eh}px">${d.eve.map((sg) => {
     const lanes = sg.lanes || 1, lane = sg.lane || 0;
     const w = 100 / lanes;
-    const top = ey(sg.s), height = Math.max(ey(sg.e) - top, 12);
+    const top = ey(sg.s), height = Math.max(ey(sg.t === "away" ? g.eveEnd : sg.e) - top, 12);
     return segHtml(sg, top, height, `left:${lane * w}%;right:${100 - (lane + 1) * w}%;`);
   }).join("")}</div>`).join("");
   h += '</div><div class="wg-legend">' +
