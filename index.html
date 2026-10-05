@@ -450,6 +450,40 @@
 
       <div class="list-section">
         <div class="list-section-title">Travel ideas · someday</div>
+        <button type="button" class="din-btn" id="idea-add-btn" style="margin-bottom:12px">+ Add a destination idea</button>
+
+        <div class="card din-form" id="idea-form" hidden style="margin-bottom:14px">
+          <h2 class="section" style="margin-top:0" id="idea-form-title">New destination idea</h2>
+          <label for="idea-name">Place</label>
+          <input id="idea-name" type="text" autocomplete="off" placeholder="e.g. Amalfi Coast" />
+          <label for="idea-region">Region or country <span class="field-sub">(optional)</span></label>
+          <input id="idea-region" type="text" autocomplete="off" />
+          <label>Who is it good for? <span class="field-sub">(tap all that fit)</span></label>
+          <div class="seg seg-wrap" id="idea-audience">
+            <button type="button" data-value="family">Family</button>
+            <button type="button" data-value="couple">Just us two</button>
+            <button type="button" data-value="friends">With friends</button>
+          </div>
+          <label for="idea-why">Why it caught your eye</label>
+          <textarea id="idea-why"></textarea>
+          <label for="idea-best">Best time to go <span class="field-sub">(optional)</span></label>
+          <input id="idea-best" type="text" autocomplete="off" />
+          <label for="idea-recby">Recommended by <span class="field-sub">(optional)</span></label>
+          <input id="idea-recby" type="text" autocomplete="off" />
+          <div class="din-actions">
+            <button type="button" class="din-btn" id="idea-save-btn">Save</button>
+            <button type="button" class="din-btn ghost" id="idea-cancel-btn">Cancel</button>
+          </div>
+          <div class="saved-note" id="idea-saved-note" hidden></div>
+        </div>
+
+        <div class="din-filters" id="idea-filters" hidden>
+          <button type="button" class="din-filter active" data-filter="all">All</button>
+          <button type="button" class="din-filter" data-filter="family">Family</button>
+          <button type="button" class="din-filter" data-filter="couple">Just us two</button>
+          <button type="button" class="din-filter" data-filter="friends">With friends</button>
+        </div>
+        <div id="idea-list"></div>
         <div class="mini-grid" id="travel-someday"></div>
       </div>
 
@@ -1836,11 +1870,147 @@ dinEls.saveBtn.addEventListener("click", async () => {
   await loadDining();
 });
 
+// ---- Destination ideas (ADR-10 third capture domain) -----------------------
+// Captured in Helm, filed into Areas/Travel/03_Future-Travel-Ideas.md by a
+// Claude session (Standards §6 Helm sweep). Audience is multi-select.
+const AUDIENCE_LABEL = { family: "Family", couple: "Just us two", friends: "With friends" };
+let allIdeas = [];
+let ideaFilter = "all";
+let editingIdeaId = null;
+let ideaAudience = [];
+const ideaEls = {
+  addBtn: document.getElementById("idea-add-btn"),
+  form: document.getElementById("idea-form"),
+  title: document.getElementById("idea-form-title"),
+  name: document.getElementById("idea-name"),
+  region: document.getElementById("idea-region"),
+  why: document.getElementById("idea-why"),
+  best: document.getElementById("idea-best"),
+  recBy: document.getElementById("idea-recby"),
+  aud: document.getElementById("idea-audience"),
+  save: document.getElementById("idea-save-btn"),
+  cancel: document.getElementById("idea-cancel-btn"),
+  note: document.getElementById("idea-saved-note"),
+  filters: document.getElementById("idea-filters"),
+  list: document.getElementById("idea-list"),
+};
+function paintIdeaAudience() {
+  ideaEls.aud.querySelectorAll("button").forEach((b) => b.classList.toggle("selected", ideaAudience.includes(b.dataset.value)));
+}
+ideaEls.aud.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const v = b.dataset.value;
+  ideaAudience = ideaAudience.includes(v) ? ideaAudience.filter((x) => x !== v) : ideaAudience.concat(v);
+  paintIdeaAudience();
+});
+function openIdeaForm(row) {
+  editingIdeaId = row ? row.id : null;
+  ideaEls.title.textContent = row ? "Edit destination idea" : "New destination idea";
+  ideaEls.name.value = row ? row.name || "" : "";
+  ideaEls.region.value = row ? row.region || "" : "";
+  ideaEls.why.value = row ? row.why || "" : "";
+  ideaEls.best.value = row ? row.best_time || "" : "";
+  ideaEls.recBy.value = row ? row.recommended_by || "" : "";
+  ideaAudience = row ? (row.audience || []).slice() : [];
+  paintIdeaAudience();
+  ideaEls.note.hidden = true;
+  ideaEls.form.hidden = false;
+  ideaEls.name.focus();
+}
+function closeIdeaForm() {
+  ideaEls.form.hidden = true;
+  editingIdeaId = null;
+}
+ideaEls.addBtn.addEventListener("click", () => openIdeaForm(null));
+ideaEls.cancel.addEventListener("click", closeIdeaForm);
+ideaEls.filters.addEventListener("click", (e) => {
+  const btn = e.target.closest(".din-filter");
+  if (!btn) return;
+  ideaFilter = btn.dataset.filter;
+  ideaEls.filters.querySelectorAll(".din-filter").forEach((b) => b.classList.toggle("active", b === btn));
+  renderIdeas();
+});
+function renderIdeaCard(r) {
+  const line = (label, v) => (v ? `<div class="din-line"><b>${label}</b>${escapeHtml(v)}</div>` : "");
+  const aud = (r.audience || []).map((a) => `<span class="din-verdict try">${escapeHtml(AUDIENCE_LABEL[a] || a)}</span>`).join(" ");
+  return `
+    <div class="din-card" data-iid="${r.id}">
+      <div class="din-name">${escapeHtml(r.name)}</div>
+      ${r.region ? `<div class="din-sub">${escapeHtml(r.region)}</div>` : ""}
+      ${aud ? `<div style="margin-top:7px">${aud}</div>` : ""}
+      ${line("Why", r.why)}
+      ${line("Best time", r.best_time)}
+      ${line("Recommended by", r.recommended_by)}
+      ${recordStatusHtml(r)}
+      <button type="button" class="din-edit">Edit</button>
+    </div>`;
+}
+function renderIdeas() {
+  ideaEls.filters.hidden = allIdeas.length === 0;
+  const rows = allIdeas.filter((r) => ideaFilter === "all" || (r.audience || []).includes(ideaFilter));
+  ideaEls.list.innerHTML = rows.length
+    ? rows.map(renderIdeaCard).join("")
+    : (allIdeas.length ? `<div class="empty">Nothing under that filter.</div>` : "");
+}
+ideaEls.list.addEventListener("click", (e) => {
+  if (!e.target.closest(".din-edit")) return;
+  const card = e.target.closest(".din-card");
+  const row = allIdeas.find((r) => r.id === card.dataset.iid);
+  if (row) { openIdeaForm(row); ideaEls.form.scrollIntoView({ behavior: "smooth", block: "start" }); }
+});
+async function loadIdeas() {
+  const { data, error } = await sb.from("destination_ideas").select("*").order("created_at", { ascending: false });
+  if (error) {
+    // Best-effort: a missing table must never break the other tabs.
+    ideaEls.list.innerHTML = `<div class="empty">Ideas aren't available yet: ${escapeHtml(error.message)}</div>`;
+    ideaEls.addBtn.hidden = true;
+    return;
+  }
+  ideaEls.addBtn.hidden = false;
+  allIdeas = data || [];
+  renderIdeas();
+}
+ideaEls.save.addEventListener("click", async () => {
+  const name = ideaEls.name.value.trim();
+  if (!name) {
+    ideaEls.note.textContent = "Add a place first.";
+    ideaEls.note.hidden = false;
+    return;
+  }
+  ideaEls.save.disabled = true;
+  ideaEls.note.hidden = true;
+  const { data: { user } } = await sb.auth.getUser();
+  const payload = {
+    owner_id: user.id,
+    name,
+    region: ideaEls.region.value.trim() || null,
+    why: ideaEls.why.value.trim() || null,
+    best_time: ideaEls.best.value.trim() || null,
+    recommended_by: ideaEls.recBy.value.trim() || null,
+    audience: ideaAudience,
+    status: "captured", // new or edited: the Second Brain copy needs (re)filing
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = editingIdeaId
+    ? await sb.from("destination_ideas").update(payload).eq("id", editingIdeaId)
+    : await sb.from("destination_ideas").insert(payload);
+  ideaEls.save.disabled = false;
+  if (error) {
+    ideaEls.note.textContent = "Could not save: " + error.message;
+    ideaEls.note.hidden = false;
+    return;
+  }
+  closeIdeaForm();
+  await loadIdeas();
+});
+
 async function showApp() {
   els.signin.hidden = true;
   els.app.hidden = false;
   await Promise.all([loadTravelList(), loadBriefAndSync()]);
   await loadDining(); // after trips load, so the trip picker has its list
+  await loadIdeas();
 }
 
 function showSignin(message) {
