@@ -109,6 +109,28 @@
   .brief-list { margin: 0; padding-left: 20px; }
   .brief-list li { margin-bottom: 8px; font-size: 14px; line-height: 1.45; }
   .brief-list li strong { color: var(--text); }
+  /* ---- 7-day week grid (inside the brief card) ---- */
+  .wg { margin: 4px 0 14px; }
+  .wg-grid { display: grid; grid-template-columns: 26px repeat(7, 1fr); column-gap: 3px; }
+  .wg-hd { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 3px; line-height: 1.2; }
+  .wg-hd b { display: block; color: var(--text); font-size: 12px; }
+  .wg-hd.today b { color: var(--accent); }
+  .wg-col { position: relative; background: #eef2f0; border-radius: 5px; overflow: hidden; }
+  .wg-ecol { position: relative; border: 1px dashed var(--panel-border); border-radius: 5px; overflow: hidden; }
+  .wg-axis { position: relative; font-size: 9px; color: var(--muted); }
+  .wg-axis span { position: absolute; right: 2px; transform: translateY(-50%); }
+  .wg-sep { grid-column: 1 / -1; height: 6px; }
+  .wg-seg { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; font-size: 9px; font-weight: 600; line-height: 1.1; padding: 0 1px; overflow: hidden; }
+  .wg-seg.busy, .wg-seg.mine { background: #f6d3d5; color: #8a3b40; }
+  .wg-seg.open { background: #2e9e66; color: #fff; letter-spacing: 0.03em; }
+  .wg-seg.family { background: #f6d86a; color: #6b5200; }
+  .wg-seg.away { background: #5b9bd5; color: #fff; }
+  .wg-seg span { font-weight: 500; overflow-wrap: anywhere; }
+  .wg-seg.multi { font-size: 0; }
+  .wg-seg.multi span { display: none; }
+  .wg-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 11px; color: var(--muted); }
+  .wg-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
   .brief-stale { color: #8a5a00; }
 
   /* ---- Sync status (heartbeat) ---- */
@@ -759,10 +781,53 @@ function formatInlineBold(s) {
   return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
+// ---- 7-day week grid -----------------------------------------------------
+// Draws raw_data.weekGrid (built by the daily-brief-lite function). Pink =
+// anything Tim is involved in, green = OPEN, blue = out of town, yellow =
+// family event not involving him (evenings). Hidden if the brief predates
+// the grid, so an older saved brief still renders normally.
+function renderWeekGrid(g) {
+  if (!g || !Array.isArray(g.days) || !g.days.length) return "";
+  const PXH = 17, EPXH = 26;
+  const dy = (m) => (Math.max(g.dayStart, Math.min(m, g.dayEnd)) - g.dayStart) / 60 * PXH;
+  const ey = (m) => (m - g.eveStart) / 60 * EPXH;
+  const dh = (g.dayEnd - g.dayStart) / 60 * PXH;
+  const eh = (g.eveEnd - g.eveStart) / 60 * EPXH;
+  const hr = (h) => (h > 12 ? h - 12 : h) + (h < 12 ? "a" : "p");
+  const segHtml = (sg, top, height, extra) =>
+    `<div class="wg-seg ${sg.t}${sg.lanes > 1 ? " multi" : ""}" title="${escapeHtml((sg.label || "") + " " + (sg.time || "")).trim()}" style="top:${top}px;height:${height}px;${extra || ""}">${sg.label ? escapeHtml(sg.label) : ""}${sg.time ? "<span>" + escapeHtml(sg.time) + "</span>" : ""}</div>`;
+  let h = '<div class="wg"><div class="wg-grid"><div></div>';
+  h += g.days.map((d) => `<div class="wg-hd${d.isToday ? " today" : ""}">${escapeHtml(d.dow)}<b>${d.dom}</b></div>`).join("");
+  let ax = "";
+  for (let t = Math.ceil(g.dayStart / 60 / 2) * 2; t <= g.dayEnd / 60; t += 2) ax += `<span style="top:${dy(t * 60)}px">${hr(t)}</span>`;
+  h += `<div class="wg-axis" style="height:${dh}px">${ax}</div>`;
+  h += g.days.map((d) => `<div class="wg-col" style="height:${dh}px">${d.day.map((sg) => {
+    const top = dy(sg.s), height = dy(sg.e) - top;
+    return height > 0 ? segHtml(sg, top, height) : "";
+  }).join("")}</div>`).join("");
+  h += '<div class="wg-sep"></div>';
+  let ex = "";
+  for (let t = g.eveStart / 60; t <= g.eveEnd / 60; t++) ex += `<span style="top:${ey(t * 60)}px">${hr(t)}</span>`;
+  h += `<div class="wg-axis" style="height:${eh}px">${ex}</div>`;
+  h += g.days.map((d) => `<div class="wg-ecol" style="height:${eh}px">${d.eve.map((sg) => {
+    const lanes = sg.lanes || 1, lane = sg.lane || 0;
+    const w = 100 / lanes;
+    const top = ey(sg.s), height = Math.max(ey(sg.e) - top, 12);
+    return segHtml(sg, top, height, `left:${lane * w}%;right:${100 - (lane + 1) * w}%;`);
+  }).join("")}</div>`).join("");
+  h += '</div><div class="wg-legend">' +
+    '<span><i style="background:#2e9e66"></i>OPEN</span>' +
+    '<span><i style="background:#f6d3d5"></i>You\'re involved</span>' +
+    '<span><i style="background:#f6d86a"></i>Family (not you)</span>' +
+    '<span><i style="background:#5b9bd5"></i>Out of town</span>' +
+    '</div></div>';
+  return h;
+}
+
 // Parses the brief's plain-text bullet format (see the Edge Function's
 // phraseWithClaude prompt) into real markup: a headline, "## " section
 // labels, and "- " bullets with **bold** titles.
-function renderBriefBullets(raw) {
+function renderBriefBullets(raw, gridHtml) {
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   let html = "";
   let inList = false;
@@ -772,6 +837,7 @@ function renderBriefBullets(raw) {
     if (line.startsWith("## ")) {
       closeList();
       html += `<div class="brief-section">${escapeHtml(line.slice(3))}</div>`;
+      if (gridHtml && line.slice(3).trim() === "Week ahead") html += gridHtml;
     } else if (line.startsWith("- ")) {
       if (!inList) { html += '<ul class="brief-list">'; inList = true; }
       html += `<li>${formatInlineBold(line.slice(2))}</li>`;
@@ -792,7 +858,7 @@ function renderBrief(brief) {
   els.briefDate.textContent = new Date().toLocaleDateString(undefined, {
     weekday: "long", month: "long", day: "numeric",
   });
-  els.briefText.innerHTML = renderBriefBullets(brief.brief_text);
+  els.briefText.innerHTML = renderBriefBullets(brief.brief_text, renderWeekGrid(brief.raw_data?.weekGrid));
   const { text, stale } = fmtBriefTimestamp(brief.generated_at, brief.raw_data?.date);
   els.briefGenerated.textContent = stale ? `${text} — this may be out of date` : text;
   els.briefGenerated.className = stale ? "brief-stale" : "";
